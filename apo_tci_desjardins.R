@@ -1,10 +1,4 @@
-library(openxlsx)
-library("readxl")
-library(tidyverse)
-library(data.table)
-library(lubridate)
-options(scipen = 999)
-
+ 
 
 # PÄIN Before vs After Using Paired Samples --------------------
 Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
@@ -4889,3 +4883,303 @@ cor(Before_vs_after$tci_after, Before_vs_after$halluc_psy_after)
 
 # ------------------
 
+
+# somnolence Before vs After Using Paired Samples -------------------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, somnolence,  pompe_date)
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+names(Consultation_20241028)
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci, somnolence))
+
+unique(first_apo$somnolence)
+unique(first_apo$tci)
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  filter(somnolence %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before"))
+
+first_apo <- first_apo %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(somnolence=ifelse(somnolence==">=2","2",somnolence)) %>%
+  mutate(tci=as.numeric(tci)) %>%
+  mutate(somnolence=as.numeric(somnolence))
+
+
+
+
+
+# All 144 available
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_after"="somnolence") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(somnolence_before=max(somnolence_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(somnolence_after=max(somnolence_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(somnolence_before=ifelse(somnolence_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(somnolence_after=ifelse(somnolence_after>=1,1,0)) %>%
+  group_by(tci_before, somnolence_before, 
+           tci_after, somnolence_after) %>% count()
+
+
+mean(Before_vs_after$somnolence_before,na.rm=T) 
+sd(Before_vs_after$somnolence_before, na.rm=T)  
+
+mean(Before_vs_after$somnolence_after, na.rm=T)  
+sd(Before_vs_after$somnolence_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$somnolence_before, Before_vs_after$somnolence_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(somnolence_before) %>% count() %>% mutate(n=n/144)
+Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/144)
+
+
+
+
+# All 119 within 60 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=60) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_after"="somnolence") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-60)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(somnolence_before=max(somnolence_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(somnolence_after=max(somnolence_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(somnolence_before=ifelse(somnolence_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(somnolence_after=ifelse(somnolence_after>=1,1,0)) %>%
+  group_by(tci_before, somnolence_before, 
+           tci_after, somnolence_after) %>% count()
+
+
+mean(Before_vs_after$somnolence_before,na.rm=T) 
+sd(Before_vs_after$somnolence_before, na.rm=T)  
+
+mean(Before_vs_after$somnolence_after, na.rm=T)  
+sd(Before_vs_after$somnolence_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$somnolence_before, Before_vs_after$somnolence_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(somnolence_before) %>% count() %>% mutate(n=n/119)
+Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/119)
+
+
+
+# All 56 within 24 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_after"="somnolence") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-24)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(somnolence_before=max(somnolence_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(somnolence_after=max(somnolence_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(somnolence_before=ifelse(somnolence_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(somnolence_after=ifelse(somnolence_after>=1,1,0)) %>%
+  group_by(tci_before, somnolence_before, 
+           tci_after, somnolence_after) %>% count()
+
+mean(Before_vs_after$somnolence_before,na.rm=T) 
+sd(Before_vs_after$somnolence_before, na.rm=T)  
+
+mean(Before_vs_after$somnolence_after, na.rm=T)  
+sd(Before_vs_after$somnolence_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$somnolence_before, Before_vs_after$somnolence_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(somnolence_before) %>% count() %>% mutate(n=n/56)
+Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/56)
+
+
+
+
+
+# All 36 within 12 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=12) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_after"="somnolence") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-12)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(somnolence_before=max(somnolence_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(somnolence_after=max(somnolence_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(somnolence_before=ifelse(somnolence_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(somnolence_after=ifelse(somnolence_after>=1,1,0)) %>%
+  group_by(tci_before, somnolence_before, 
+           tci_after, somnolence_after) %>% count()
+
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(somnolence_before=ifelse(somnolence_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(somnolence_after=ifelse(somnolence_after>=1,1,0)) %>%
+  group_by(tci_after, somnolence_after) %>% count()
+
+
+
+
+mean(Before_vs_after$somnolence_before,na.rm=T) 
+sd(Before_vs_after$somnolence_before, na.rm=T)  
+
+mean(Before_vs_after$somnolence_after, na.rm=T)  
+sd(Before_vs_after$somnolence_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$somnolence_before, Before_vs_after$somnolence_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(somnolence_before) %>% count() %>% mutate(n=n/36)
+Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/36)
+
+
+cor(Before_vs_after$tci_before, Before_vs_after$somnolence_before)
+cor(Before_vs_after$tci_after, Before_vs_after$somnolence_after)
+
+
+# ------------------
+
+
+# try to predict -------------------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, ttt_ledd_ago, hoehn_yahr_on, dyskinesie, fluct_motrice,  pompe_date)
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+names(Consultation_20241028)
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+
+
+data <- data %>% left_join(Inclusion_20241028 %>% select(anonyme_id, pat_sexe, pat_ddn_a, diag_date_a))
+
+
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+first_apo <- first_apo %>% left_join(data)
+
+unique(first_apo$fluct_motrice)
+unique(first_apo$hoehn_yahr_on)
+unique(first_apo$dyskinesie)
+
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before"))
+
+first_apo <- first_apo %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci)) 
+
+first_apo <- first_apo %>% mutate(pat_sexe=ifelse(pat_sexe=="H",1,0))
+
+first_apo <- first_apo %>% 
+  mutate(tci=ifelse(fluct_motrice==">=2","2",fluct_motrice)) %>%
+  mutate(tci=as.numeric(tci))  %>%
+  mutate(dyskinesie=ifelse(dyskinesie==">=2","2",dyskinesie)) %>%
+  mutate(dyskinesie=as.numeric(dyskinesie)) 
+
+
+
+first_apo <- first_apo %>% mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year))
+
+
+
+
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, ttt_ledd_ago, hoehn_yahr_on, dyskinesie,fluct_motrice,pat_sexe, age,disease_dur, elapsed) %>%   rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=60) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, elapsed) %>%  rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-60)) 
+  )
+
+
+Before_vs_after <- Before_vs_after %>% mutate(delta=tci_before-tci_after) # the more positiv; the highr reduction
+
+
+test <- Before_vs_after %>% ungroup() %>%
+  mutate(ttt_ledd_ago=as.numeric(ttt_ledd_ago)) %>%
+  select(delta, ttt_ledd_ago) %>%
+  drop_na()
+
+cor.test(test$ttt_ledd_ago,test$delta)
+
+# ---------------
