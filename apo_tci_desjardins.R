@@ -5444,3 +5444,320 @@ Consultation_20241028 %>% select(anonyme_id, pompe_date) %>%
   group_by(pompe_date) %>% summarise(tci=mean(tci, na.rm=T))
 
 # -------------
+# Pair patients who did not receive apo pump and see their tci over time V2 Stricter -----------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+
+MPs <- Inclusion_20241028 <- Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+# Apomorphine patients
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, pompe_date)
+
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci))
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before")) %>%
+  mutate(tci=parse_number(tci))  
+
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+  select(anonyme_id, tci, elapsed,act_datedeb ) %>% rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>% rename("act_datedeb_before"="act_datedeb") %>% 
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+      select(anonyme_id, tci, elapsed, act_datedeb) %>% rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") %>% rename("act_datedeb_after"="act_datedeb") %>% 
+      filter(elapsed_after>=(-24))
+  )
+
+Before_vs_after <- Before_vs_after %>% distinct()
+
+mean(Before_vs_after$tci_before)
+mean(Before_vs_after$tci_after)
+
+pats_apo_to_pair <- Before_vs_after %>% select(anonyme_id) 
+
+
+# All patients all data, inc apo
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+data_all <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, hoehn_yahr_on, pompe_date)
+data_all$act_datedeb <- as.Date(data_all$act_datedeb)
+data_all$pompe_date <- as.Date(data_all$pompe_date)
+data_all <- data_all %>% arrange(anonyme_id, redcap_repeat_instance)
+data_all <- data_all %>% left_join(Inclusion_20241028 %>% select(anonyme_id, pat_sexe, pat_ddn_a, diag_date_a))
+length(unique(data_all$anonyme_id))  # 25107
+data_all <- data_all %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci)) 
+data_all <- data_all %>%  mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) 
+data_all <- data_all %>%  mutate(pat_sexe =ifelse(pat_sexe =="H",1,0)) 
+data_all <- data_all %>% mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year))
+
+
+pats_apo_to_pair <- Before_vs_after %>% select(anonyme_id, act_datedeb_before) %>%
+  left_join(data_all, by=c("anonyme_id"="anonyme_id","act_datedeb_before"="act_datedeb")) %>%
+  select(-pompe_date) %>% ungroup() %>%
+  drop_na() #  %>% select(-c( redcap_repeat_instance))
+
+
+data_all <- data_all %>% anti_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id))
+data_all <- data_all %>% select(-pompe_date) %>% drop_na()
+
+patients_to_pair <- data_all # %>% select(-c(redcap_repeat_instance))
+
+pump_patients <- pats_apo_to_pair
+control_patients <- patients_to_pair
+
+pump_patients$act_datedeb_before <- as.numeric(pump_patients$act_datedeb_before)
+control_patients$act_datedeb <- as.numeric(control_patients$act_datedeb)
+
+pump_patients <- pump_patients %>% rename("act_datedeb"="act_datedeb_before")
+
+# Define Tolerance for Numerical Variables
+tolerances <- c(age = 5, disease_dur = 5, act_datedeb=31, redcap_repeat_instance=2)
+
+# Initialize List to Store Matches
+matches <- list()
+
+# Matching Loop
+for (i in 1:nrow(pump_patients)) {
+  pump <- pump_patients[i, ]
+  
+  # Filter for Exact Matches (Row-Specific Matching)
+  potential_controls <- control_patients %>%
+    filter(
+      pat_sexe == pump$pat_sexe,      # Exact match on sex
+      tci == pump$tci,               # Exact match on TCI
+      hoehn_yahr_on == pump$hoehn_yahr_on, # Exact match on disease stage
+      abs(age - pump$age) <= tolerances["age"],      # Age within ±5
+      abs(act_datedeb - pump$act_datedeb) <= tolerances["act_datedeb"],    # A visit within ±1 year of the pump patients
+      abs(disease_dur - pump$disease_dur) <= tolerances["disease_dur"], # Disease duration within ±5
+      abs(redcap_repeat_instance - pump$redcap_repeat_instance) <= tolerances["redcap_repeat_instance"] # redcap_repeat_instance within ±2
+      
+    )
+  
+  # If there are matches, record them
+  if (nrow(potential_controls) > 0) {
+    potential_controls$matched_to <- pump$anonyme_id  # Track matched pump patient
+    matches[[as.character(pump$anonyme_id)]] <- potential_controls
+  }
+}
+
+# Combine Matches into a Single Data Frame
+match_results <- do.call(rbind, matches)
+
+
+match_results <- match_results %>% select(anonyme_id, matched_to) %>%
+  distinct() %>% group_by(matched_to) %>% slice(1:5)
+
+
+first_visit_controls <- match_results %>% select(anonyme_id) %>%
+  distinct() %>%
+  left_join(data_all) %>%
+  group_by(anonyme_id) %>% count() %>%
+  filter(n>1) %>% select(-n) %>%
+  left_join(data_all) %>% mutate(act_datedeb=as.numeric(act_datedeb)) %>%
+  inner_join(match_results) %>%
+  group_by(anonyme_id, matched_to) %>% summarise(act_datedeb=min(act_datedeb))
+
+
+pump_patients  %>%
+  ungroup() %>%
+  summarise(mean=mean(tci))
+
+first_visit_controls %>% select(-matched_to) %>% distinct() %>%
+  left_join(data_all %>% mutate(act_datedeb=as.numeric(act_datedeb))) %>%
+  ungroup() %>%
+  summarise(mean=mean(tci))
+
+
+first_visit_controls %>% select(anonyme_id) %>% distinct() %>% ungroup() %>%
+  inner_join(Consultation_20241028)  %>%
+  select(anonyme_id, ttt_ledd_ago) %>%
+  mutate(ttt_ledd_ago=as.numeric(ttt_ledd_ago)) %>% filter(ttt_ledd_ago<4000) %>%
+  summarise(mean=mean(ttt_ledd_ago, na.rm=T), sd=sd(ttt_ledd_ago, na.rm=T))
+
+# mean    sd
+# <dbl> <dbl>
+#   1  168.  158.
+
+pump_patients %>% select(anonyme_id) %>% distinct() %>% ungroup() %>%
+  inner_join(Consultation_20241028)  %>%
+  group_by(anonyme_id) %>% mutate(pompe_date=as.Date(pompe_date)) %>% summarise(pompe_date=min(pompe_date, na.rm=T)) %>%
+  rename("firstpompe"="pompe_date") %>%
+  left_join(Consultation_20241028 %>% mutate(act_datedeb =as.Date(act_datedeb))) %>% filter(act_datedeb<firstpompe) %>%
+  select(anonyme_id, ttt_ledd_ago) %>% 
+  mutate(ttt_ledd_ago=as.numeric(ttt_ledd_ago)) %>% filter(ttt_ledd_ago<4000) %>%
+  summarise(mean=mean(ttt_ledd_ago, na.rm=T), sd=sd(ttt_ledd_ago, na.rm=T))
+
+# mean    sd
+# <dbl> <dbl>
+# 1  206.  146.
+
+match_results %>% select(anonyme_id) %>%
+  distinct() %>%
+  left_join(data_all) %>%
+  group_by(anonyme_id) %>% count() %>%
+  filter(n>1) %>% select(-n) %>%
+  left_join(data_all) %>%
+  ggplot(aes(redcap_repeat_instance , tci)) +
+  geom_smooth(se=F)+
+  coord_cartesian(
+    xlim = c(0,10),
+    ylim = c(0,0.5)
+  )
+
+match_results %>% select(matched_to) %>% distinct() %>%
+  left_join(Consultation_20241028, by=c("matched_to"="anonyme_id")) %>%
+  select(act_datedeb  , tci) %>% mutate(act_datedeb=as.numeric(as.Date(act_datedeb) )) %>%
+  mutate(tci=ifelse(tci==">=2", "2", tci)) %>%
+  mutate(tci=as.numeric(tci)) %>% drop_na() %>%
+  ggplot(aes(act_datedeb , tci)) +
+  geom_smooth()
+
+
+match_results %>% select(anonyme_id) %>%
+  distinct() %>%
+  left_join(data_all) %>%
+  group_by(anonyme_id) %>% count() %>%
+  filter(n>1) %>% select(-n) %>%
+  left_join(data_all)  %>% ungroup() %>%
+  select(redcap_repeat_instance , tci) %>%
+  mutate(Group="Control (no pump)") %>%
+  bind_rows(
+    match_results %>% select(matched_to) %>% distinct() %>%
+      left_join(Consultation_20241028, by=c("matched_to"="anonyme_id")) %>%
+      select(redcap_repeat_instance , tci) %>%
+      mutate(tci=ifelse(tci==">=2", "2", tci)) %>%
+      mutate(tci=as.numeric(tci)) %>% drop_na() %>%
+      mutate(Group="Apomorphine Pump")
+  ) %>%
+  ggplot(aes(redcap_repeat_instance , tci, colour=Group, fill=Group)) +
+  geom_smooth(se=F, method = "gam", size=2, alpha=0.5)+
+  coord_cartesian(
+    xlim = c(0,10),
+    ylim = c(0,0.35)
+  ) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10, vjust = -0.5),
+        axis.title.y = element_text(size = 10, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt")) +
+  scale_color_manual(values=c("#558EA9", "#A955A7")) +
+  scale_fill_manual(values=c("#558EA9", "#A955A7")) +
+  xlab("\n Evaluation Number") +
+  ylab("Average ICD Score \n")
+
+
+
+
+match_results %>% select(anonyme_id) %>%
+  distinct() %>%
+  left_join(data_all) %>%
+  group_by(anonyme_id) %>% count() %>%
+  filter(n>1) %>% select(-n) %>%
+  left_join(data_all)  %>% ungroup() %>%
+  select(act_datedeb , tci) %>%
+  mutate(act_datedeb=as.numeric(as.Date(act_datedeb) )) %>%
+  mutate(Group="Control (no pump)") %>%
+  bind_rows(
+    match_results %>% select(matched_to) %>% distinct() %>%
+      left_join(Consultation_20241028, by=c("matched_to"="anonyme_id")) %>%
+      select(act_datedeb , tci) %>%
+      mutate(act_datedeb=as.numeric(as.Date(act_datedeb) )) %>%
+      mutate(tci=ifelse(tci==">=2", "2", tci)) %>%
+      mutate(tci=as.numeric(tci)) %>% drop_na() %>%
+      mutate(Group="Apomorphine Pump")
+  ) %>%
+  ggplot(aes(act_datedeb , tci, colour=Group, fill=Group)) +
+  geom_smooth(se=F, method = "gam", size=2, alpha=0.3)+
+  coord_cartesian(
+    xlim = c(16000,20000),
+    ylim = c(0,0.3)
+  ) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10, vjust = -0.5),
+        axis.title.y = element_text(size = 10, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt")) +
+  scale_color_manual(values=c("#558EA9", "#A955A7")) +
+  scale_fill_manual(values=c("#558EA9", "#A955A7")) +
+  xlab("\n Exact Date") +
+  ylab("Average ICD Score \n")
+
+
+
+Consultation_20241028 %>% select(anonyme_id, pompe_date) %>% 
+  mutate(pompe_date=ifelse(is.na(pompe_date),0,1)) %>% group_by(anonyme_id ) %>% 
+  summarise(pompe_date=max(pompe_date)) %>%
+  left_join(Consultation_20241028  %>% select(anonyme_id, tci)) %>%
+  mutate(tci=ifelse(tci==">=2","2",tci)) %>% 
+  mutate(tci=as.numeric(tci)) %>% ungroup() %>% 
+  group_by(pompe_date) %>% summarise(tci=mean(tci, na.rm=T))
+
+
+Consultation_20241028 %>% select(anonyme_id, pompe_date) %>% 
+  mutate(pompe_date=ifelse(is.na(pompe_date),0,1)) %>% group_by(anonyme_id ) %>% 
+  summarise(pompe_date=max(pompe_date)) %>%
+  left_join(Consultation_20241028  %>% select(anonyme_id, ttt_leponex_100_yn___yes)) %>%
+  mutate(ttt_leponex_100_yn___yes=as.numeric(ttt_leponex_100_yn___yes)) %>% ungroup() %>% 
+  group_by(pompe_date) %>% summarise(ttt_leponex_100_yn___yes=mean(ttt_leponex_100_yn___yes, na.rm=T))
+
+
+
+
+# -------------
