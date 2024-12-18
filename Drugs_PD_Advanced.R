@@ -3,15 +3,6 @@ library(tidyverse)
 library(data.table)
 library(readxl)
 
-library(corrplot)
-library(FactoMineR)
-library(MASS)
-library(factoextra)
-library(gridExtra)
-library(pheatmap)
-library(dplyr)
-library(VIM)
-
 
 
 # Merge visit data with demographics info -----------------
@@ -212,7 +203,7 @@ data_late <- data_late[data_late$pat_ddn_a <= data_late$diag_date_a,]
 data_late <- data_late[!is.na(data_late$pat_code_anonyme),]
 
 length(unique(data_late$pat_code_anonyme)) #4140 # 2690
-
+dim(data_late)
 
 # ----------------
 
@@ -222,8 +213,37 @@ length(unique(data_late$pat_code_anonyme)) #4140 # 2690
 # Rerun code above to get "data_late" new version on advanced PD
 # !!!!!!!!!!!!!!!!!!!!!!!!!
 
-data_late <- data_late %>% group_by(pat_code_anonyme) %>% mutate(act_datedeb=as.Date(act_datedeb)) %>%
-  filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup()
+
+Pats_2_visits <- data_late %>% select(pat_code_anonyme, act_datedeb) %>% distinct() %>%
+  group_by(pat_code_anonyme) %>% count() %>% filter(n>1) %>% ungroup() %>% 
+  select(pat_code_anonyme) %>%
+  left_join(data_late %>% select(pat_code_anonyme, act_datedeb) %>% distinct()) %>%
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  arrange(pat_code_anonyme, act_datedeb) %>%
+  group_by(pat_code_anonyme) %>% 
+  mutate(
+    Elapsed_Time_Months = if_else(
+      is.na(lag(act_datedeb)), 
+      NA_real_, 
+      lubridate::interval(lag(act_datedeb), act_datedeb) %/% months(1)
+    )
+  ) %>% ungroup() %>% 
+  mutate(Elapsed_Time_Months=ifelse(is.na(Elapsed_Time_Months),0,Elapsed_Time_Months)) %>%
+  group_by(pat_code_anonyme) %>%
+  mutate(cumElapsed=cumsum(Elapsed_Time_Months)) %>%
+  filter(cumElapsed==0| (cumElapsed>6&cumElapsed<24) ) %>% slice(1:2) %>%
+  select(pat_code_anonyme, act_datedeb) %>% distinct()
+
+Pats_2_visits <- Pats_2_visits %>% count() %>% filter(n==2) %>% select(pat_code_anonyme) %>%
+  left_join(Pats_2_visits)
+
+data_late <- data_late %>% mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) 
+
+data_late <- Pats_2_visits %>% ungroup() %>% left_join(data_late)
+
+
+#data_late <- data_late %>% group_by(pat_code_anonyme) %>% mutate(act_datedeb=as.Date(act_datedeb)) %>%
+#  filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup()
 
 data_late$ttt_ache <- ifelse(data_late$ttt_ache == "Non", "0", "1")
 
@@ -322,7 +342,7 @@ library(tidyverse)
 
 liste_apo <- grepl("\\bAPOKINON\\b", data_late$ttt_autre_ldopa,ignore.case = TRUE)
 
-data_late <- data_late %>% group_by(pat_code_anonyme) %>% mutate(act_datedeb=as.Date(act_datedeb)) %>% filter(act_datedeb==min(act_datedeb)) %>% ungroup()
+# data_late <- data_late %>% group_by(pat_code_anonyme) %>% mutate(act_datedeb=as.Date(act_datedeb)) %>% filter(act_datedeb==min(act_datedeb)) %>% ungroup()
 
 df_ldopa <- data_late
 
@@ -439,6 +459,8 @@ print(df_ldopa[df_ldopa$Erreur == 0 & !is.na(df_ldopa$ttt_autre_ldopa),])
 
 df_complet <- new_traitement
 
+
+
 df_complet[is.na(df_complet)] <- 0
 
 df_complet$A <- df_complet$A + df_ldopa$N_park_A
@@ -487,9 +509,91 @@ new_traitement <- new_traitement[ ,names(new_traitement) %in% c("X","pat_code_an
 df_complet <- df_complet[ ,names(df_complet) %in% c("X","pat_code_anonyme","A","B","C","D","E","F","TO","SCP","LGI","ASC","Antipsychotique","Anticholinestherasique","Antidepresseur","Nb_Autre")]
 
 
-df_complet
+length(unique(df_complet$pat_code_anonyme)) 
 
+
+df_complet %>% left_join(Pats_2_visits)
+
+ignore <- Pats_2_visits %>%
+  left_join(data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y")))) %>%
+  select(pat_code_anonyme, dyskinesie, douleur, dysarthrie, chute_instab,
+                   freezing, somnolence, deform_post, tr_degl, chute, fatigue, rbd,sas,sjsr,
+         hypotension, apathie, depression, anxiete, halluc_psy, tci, punding, tr_cognitif)
+
+
+ignore <- ignore %>%
+  mutate(across(everything(), ~ ifelse(. == ">=2", "2", .))) %>%
+  mutate(across(everything(), ~ ifelse(. == "Oui", "1", .))) %>%
+  mutate(across(everything(), ~ ifelse(. == "Non", "0", .)))
+
+ignore <- ignore %>% mutate(across(dyskinesie:tr_cognitif , as.numeric))
+
+ignore <- df_complet %>% group_by(pat_code_anonyme) %>%
+  mutate(X=row_number()) %>% ungroup() %>% bind_cols(ignore) 
+
+ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17)) %>%
+  gather(Drug, ON, A:F) %>%
+  arrange(pat_code_anonyme...1) %>%
+  gather(symptom, YES, dyskinesie :tr_cognitif ) %>%
+  group_by(X, Drug, ON, symptom) %>%
+  filter(X ==1 | X==2) %>%
+  summarise(YES=mean(YES, na.rm=T)) %>%
+  filter(Drug=="A") %>%
+  spread(key=X, value=YES) %>%
+  arrange(Drug, symptom)
+
+exportignore <- data.frame(ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
+  select(pat_code_anonyme...1, dyskinesie:tr_cognitif) %>%
+  group_by(pat_code_anonyme...1) %>%
+  mutate(across(dyskinesie:tr_cognitif, ~ . - lag(.), .names = "diff_{.col}")) %>%
+  ungroup() %>%
+  select(pat_code_anonyme...1, starts_with("diff_")) %>%
+  bind_cols(ignore %>% select(pat_code_anonyme...1, X:F)) %>%
+  filter(X ==1 | X==2) %>% ungroup() %>%
+  gather(Drug, ON, A:F) %>%
+  gather(symptom, YES, diff_dyskinesie:diff_tr_cognitif ) %>%
+  filter(X==1) %>%
+  select(pat_code_anonyme...1,Drug, ON) %>%
+  bind_cols(
+    ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
+      select(pat_code_anonyme...1, dyskinesie:tr_cognitif) %>%
+      group_by(pat_code_anonyme...1) %>%
+      mutate(across(dyskinesie:tr_cognitif, ~ . - lag(.), .names = "diff_{.col}")) %>%
+      ungroup() %>%
+      select(pat_code_anonyme...1, starts_with("diff_")) %>%
+      bind_cols(ignore %>% select(pat_code_anonyme...1, X:F)) %>%
+      filter(X ==1 | X==2) %>% ungroup() %>%
+      gather(Drug, ON, A:F) %>%
+      gather(symptom, YES, diff_dyskinesie:diff_tr_cognitif ) %>%
+      filter(X==2) %>%
+      select(pat_code_anonyme...1,symptom, YES) 
+  ) %>%
+  group_by(Drug, ON, symptom) %>%
+  summarise(YES=mean(YES, na.rm=T)) %>%
+  filter(Drug!="Anticholinestherasique") %>%
+    spread(key=Drug, value=YES) %>%
+  arrange(symptom))
+  
+fwrite(exportignore, "exportignore.csv")
+
+
+
+
+ignore2 <- ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
+  select(pat_code_anonyme...1, X, dyskinesie:tr_cognitif) %>%
+  filter(X==1 | X==2) %>%
+  group_by(X) %>%
+  summarize(across(dyskinesie:tr_cognitif, ~ mean(., na.rm = TRUE), .names = "mean_{.col}")) 
+
+fwrite(ignore2, "ignore2.csv")
+
+
+
+
+
+# med <- df_complet[,-c(1,2,12:14,16)]
 med <- df_complet[,-c(1,2,12:14,16)]
+
 
 med[is.na(med)] <- 0
 
@@ -500,17 +604,6 @@ freq <- table(combinations)
 freq_sorted <- sort(freq, decreasing = TRUE)
 
 top_combinations <- head(freq_sorted, 10)
-
-# Ajustement des marges
-old_par <- par(mar = c(5, 10, 4, 2) + 0.1)  # Augmente la marge gauche (second argument) pour les étiquettes
-
-# Création du barplot transposé avec étiquettes verticales
-barplot(top_combinations, main = "Top 10 des Combinaisons les Plus Fréquentes",
-        xlab = "Fréquence", col = "skyblue", las = 1, horiz = TRUE)
-
-# Réinitialisation des paramètres graphiques
-par(old_par)
-
 
 med$combinations <- combinations
 med$X <- df_complet$X
@@ -525,6 +618,13 @@ head(med)
 head(df_complet)
 df_complet[is.na(df_complet)] <- 0
 
+
+data.frame(df_complet %>%
+  group_by(pat_code_anonyme) %>%
+  mutate(row_number=row_number())) %>% ungroup() %>%
+  group_by(row_number) %>% 
+  summarise(A=mean(Antidepresseur))
+
 # on regarde les combinaisons à la baseline
 med <- df_complet[,-c(1,2,12:14,16)]
 
@@ -535,16 +635,6 @@ freq <- table(combinations)
 freq_sorted <- sort(freq, decreasing = TRUE)
 
 top_combinations <- head(freq_sorted, 10)
-# Ajustement des marges
-old_par <- par(mar = c(5, 10, 4, 2) + 0.1)  # Augmente la marge gauche (second argument) pour les étiquettes
-
-# Création du barplot transposé avec étiquettes verticales
-barplot(top_combinations, main = "Top 10 des Combinaisons les Plus Fréquentes",
-        xlab = "Fréquence", col = "skyblue", las = 1, horiz = TRUE)
-
-# Réinitialisation des paramètres graphiques
-par(old_par)
-
 
 med$combinations <- combinations
 med$pat_code_anonyme <- df_complet[,]$pat_code_anonyme
