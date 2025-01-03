@@ -205,6 +205,66 @@ data_late <- data_late[!is.na(data_late$pat_code_anonyme),]
 length(unique(data_late$pat_code_anonyme)) #4140 # 2690
 dim(data_late)
 
+
+
+
+
+
+names(data_late)
+
+
+data_late %>% 
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>%
+  group_by(pat_sexe) %>% count()
+
+
+
+data_late %>% 
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>%
+  select(pat_code_anonyme, act_datedeb, pat_ddn_a, pat_ddn_m) %>%
+  mutate(act_datedeb=as.character(act_datedeb)) %>%
+  mutate(act_datedeb=str_sub(act_datedeb,1L,4L)) %>%
+  mutate(act_datedeb=as.numeric(act_datedeb)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>% ungroup() %>%
+  summarise(age=mean(act_datedeb -pat_ddn_a, na.rm=T ), sd=sd(act_datedeb -pat_ddn_a, na.rm=T))
+
+
+
+
+data_late %>% 
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>%
+  select(pat_code_anonyme, act_datedeb, diag_date_a) %>%
+  mutate(act_datedeb=as.character(act_datedeb)) %>%
+  mutate(act_datedeb=str_sub(act_datedeb,1L,4L)) %>%
+  mutate(act_datedeb=as.numeric(act_datedeb)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>% ungroup() %>%
+  summarise(age=mean(act_datedeb -diag_date_a, na.rm=T ), sd=sd(act_datedeb -diag_date_a, na.rm=T))
+
+
+
+
+data_late %>% 
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>%
+  select(pat_code_anonyme, ttt_ledd_totale) %>%
+  filter(ttt_ledd_totale<4000) %>% ungroup() %>%
+  summarise(mean=mean(ttt_ledd_totale), sd=sd(ttt_ledd_totale))
+
+
+
+data_late %>% 
+  mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) %>%
+  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>%
+  select(pat_code_anonyme, hoehn_yahr_on) %>%
+  mutate(hoehn_yahr_on=parse_number(hoehn_yahr_on))  %>% drop_na() %>%
+  group_by(hoehn_yahr_on) %>% count()
+
+
+
+
 # ----------------
 
 # Medications combinations ---------------
@@ -541,6 +601,60 @@ ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17)) %>%
   filter(Drug=="A") %>%
   spread(key=X, value=YES) %>%
   arrange(Drug, symptom)
+
+
+
+
+xxx <- ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
+  select(pat_code_anonyme...1, dyskinesie:tr_cognitif) %>%
+  group_by(pat_code_anonyme...1) %>%
+  mutate(across(dyskinesie:tr_cognitif, ~ . - lag(.), .names = "diff_{.col}")) %>%
+  ungroup() %>%
+  select(pat_code_anonyme...1, starts_with("diff_")) %>%
+  bind_cols(ignore %>% select(pat_code_anonyme...1, X:F)) %>%
+  filter(X ==1 | X==2) %>% ungroup() %>%
+  inner_join(
+    ignore %>%  mutate(Other=A+C+D) %>%
+      mutate(Group=ifelse(B==1&Other==0, "LDonly",
+                          ifelse(B==1&Other!=0, "Combo", "none")))
+  )
+
+
+names(xxx)
+
+
+xxx %>% filter(X==1) %>%
+  select(pat_code_anonyme...1, Group) %>% group_by(Group) %>% count() %>% mutate(n2=n/539)
+
+
+# Group      n    n2
+# <chr>  <int> <dbl>
+#   1 Combo    304 0.564
+# 2 LDonly   118 0.219
+# 3 none     117 0.217
+
+
+
+data.frame(xxx %>% filter(X==1) %>%
+             select(pat_code_anonyme...1, Group) %>%
+             left_join(
+               xxx %>% filter(X==2) %>% select(pat_code_anonyme...1, diff_dyskinesie:diff_tr_cognitif) %>%
+                 gather(symptom, Mean, diff_dyskinesie:diff_tr_cognitif )
+             ) %>%
+             group_by(Group, symptom) %>% summarise(mean=mean(Mean, na.rm=T)) %>%
+             spread(key=Group, value=mean))
+
+
+data.frame(xxx %>% 
+  select(pat_code_anonyme...1, X, Group) %>%
+  left_join(
+    xxx %>% select(pat_code_anonyme...1, X, dyskinesie:tr_cognitif) 
+  ) %>%
+  gather(symptom, Score, dyskinesie:tr_cognitif ) %>%
+group_by(Group, X, symptom) %>% summarise(mean=mean(Score,na.rm=T)) %>%
+  spread(key=Group,value=mean))
+
+
 
 exportignore <- data.frame(ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
   select(pat_code_anonyme...1, dyskinesie:tr_cognitif) %>%

@@ -369,7 +369,7 @@ data.frame(df_complet %>% left_join(data_v %>% select(anonyme_id,redcap_repeat_i
 
 
 data.frame(df_complet %>% left_join(data_v %>% select(anonyme_id,redcap_repeat_instance,act_datedeb, hoehn_yahr_on )) %>%
-             filter(hoehn_yahr_on %in% c("0", "1", "2", ">=2", "3", "4","5")) %>%
+             filter(hoehn_yahr_on %in% c("1", "2", ">=2", "3", "4","5")) %>%
              mutate(hoehn_yahr_on=parse_number(hoehn_yahr_on)) %>%
              mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
              filter(grepl("2016",act_datedeb)|grepl("2017",act_datedeb)|grepl("2018",act_datedeb)|
@@ -394,7 +394,7 @@ data.frame(df_complet %>% left_join(data_v %>% select(anonyme_id,redcap_repeat_i
   mutate(Drug=factor(Drug, levels=c("MAO Inhibitor","Levodopa","Dopamine Agonists","Amantadine","COMT inhibitor", "Oral Treatment",
                                     "DBS","Subcutaneous Apo","Intestinal Gel","Anticholinergics","Antidepressant", "Antipsychotic"))) %>%
   ggplot(aes(hoehn_yahr_on , ON, colour=Drug, fill=Drug)) +
-  geom_smooth(method = "gam",   formula = y ~ s(x, k = 6), se = FALSE, size=1.5, alpha=0.5) +
+  geom_smooth(method = "gam",   formula = y ~ s(x, k = 5), se = FALSE, size=1.5, alpha=0.5) +
   theme_minimal() +
   xlab("\n Hoehn & Yarh") + ylab("Probability of being ON \n") +
   scale_colour_manual(values=c(
