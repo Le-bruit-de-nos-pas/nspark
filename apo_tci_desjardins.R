@@ -101,6 +101,8 @@ quantile(Before_vs_after$elapsed_after, 0.75)
 
 wilcox.test(Before_vs_after$douleur_before, Before_vs_after$douleur_after, paired = TRUE, alternative = "two.sided")
 
+
+
 Before_vs_after %>% 
   mutate(douleur_before=ifelse(douleur_before>=1,1,0)) %>%
   mutate(douleur_after=ifelse(douleur_after>=1,1,0)) %>%
@@ -113,6 +115,27 @@ data <- matrix(c(41, 22, 20, 46), nrow = 2, byrow = TRUE,
 mcnemar.test(data)
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(douleur_before, douleur_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "douleur"
+  ) %>%
+  mutate(
+    time = ifelse(time == "douleur_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$douleur)
+
+data_long$douleur <- factor(data_long$douleur, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(douleur ~ time , data = data_long)
+
+summary(model)
 
 
 # All 124 within 60 months
@@ -154,6 +177,31 @@ data <- matrix(c(39, 22, 19, 44), nrow = 2, byrow = TRUE,
 
 
 mcnemar.test(data)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(douleur_before, douleur_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "douleur"
+  ) %>%
+  mutate(
+    time = ifelse(time == "douleur_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$douleur)
+
+data_long$douleur <- factor(data_long$douleur, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(douleur ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -201,6 +249,29 @@ mcnemar.test(data)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(douleur_before, douleur_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "douleur"
+  ) %>%
+  mutate(
+    time = ifelse(time == "douleur_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$douleur)
+
+data_long$douleur <- factor(data_long$douleur, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(douleur ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 30 within 12months
 
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
@@ -243,6 +314,32 @@ data <- matrix(c(14, 3, 1, 12), nrow = 2, byrow = TRUE,
 
 
 mcnemar.test(data)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(douleur_before, douleur_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "douleur"
+  ) %>%
+  mutate(
+    time = ifelse(time == "douleur_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$douleur)
+
+data_long$douleur <- factor(data_long$douleur, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(douleur ~ time , data = data_long)
+
+summary(model)
+
 
 
 
@@ -568,6 +665,10 @@ Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(ano
 Before_vs_after %>% group_by(tci_before) %>% count() %>% mutate(n=n/149)
 Before_vs_after %>% group_by(tci_after) %>% count()  %>% mutate(n=n/149)
 
+Before_vs_after %>% group_by(tci_before, tci_after) %>% count()
+
+
+
 mean(Before_vs_after$tci_before) 
 sd(Before_vs_after$tci_before) 
 median(Before_vs_after$elapsed_before) 
@@ -600,6 +701,28 @@ data <- matrix(c(10, 23, 10, 106), nrow = 2, byrow = TRUE,
 mcnemar.test(data)
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tci_before, tci_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tci"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tci_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tci)
+
+data_long$tci <- factor(data_long$tci, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tci ~ time , data = data_long)
+
+summary(model)
 
 
 # All 124 within 60 months
@@ -647,6 +770,30 @@ mcnemar.test(data)
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tci_before, tci_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tci"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tci_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tci)
+
+data_long$tci <- factor(data_long$tci, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tci ~ time , data = data_long)
+
+summary(model)
+
 # All 59 within 24months
 
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
@@ -687,6 +834,31 @@ data <- matrix(c(7, 8, 1, 43), nrow = 2, byrow = TRUE,
 
 
 mcnemar.test(data)
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tci_before, tci_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tci"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tci_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tci)
+
+data_long$tci <- factor(data_long$tci, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tci ~ time , data = data_long)
+
+summary(model)
+
 
 
 
@@ -734,6 +906,30 @@ data <- matrix(c(5, 6, 0, 26), nrow = 2, byrow = TRUE,
 
 mcnemar.test(data)
 
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tci_before, tci_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tci"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tci_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tci)
+
+data_long$tci <- factor(data_long$tci, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tci ~ time , data = data_long)
+
+summary(model)
 
 
 # All 13 within 6months
@@ -1522,6 +1718,33 @@ Before_vs_after %>% group_by(fluct_motrice_after) %>% count() %>% mutate(n=n/145
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(fluct_motrice_before, fluct_motrice_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "fluct_motrice"
+  ) %>%
+  mutate(
+    time = ifelse(time == "fluct_motrice_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$fluct_motrice)
+
+data_long$fluct_motrice <- factor(data_long$fluct_motrice, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(fluct_motrice ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 120 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, fluct_motrice, elapsed) %>% rename("fluct_motrice_before"="fluct_motrice") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -1576,6 +1799,30 @@ Before_vs_after %>% group_by(fluct_motrice_after) %>% count() %>% mutate(n=n/120
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(fluct_motrice_before, fluct_motrice_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "fluct_motrice"
+  ) %>%
+  mutate(
+    time = ifelse(time == "fluct_motrice_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$fluct_motrice)
+
+data_long$fluct_motrice <- factor(data_long$fluct_motrice, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(fluct_motrice ~ time , data = data_long)
+
+summary(model)
+
+
 # All 57 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, fluct_motrice, elapsed) %>% rename("fluct_motrice_before"="fluct_motrice") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -1627,6 +1874,30 @@ Before_vs_after %>% group_by(fluct_motrice_after) %>% count() %>% mutate(n=n/57)
 
 
 
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(fluct_motrice_before, fluct_motrice_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "fluct_motrice"
+  ) %>%
+  mutate(
+    time = ifelse(time == "fluct_motrice_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$fluct_motrice)
+
+data_long$fluct_motrice <- factor(data_long$fluct_motrice, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(fluct_motrice ~ time , data = data_long)
+
+summary(model)
 
 
 # All 36 within 12 months
@@ -1685,6 +1956,31 @@ wilcox.test(Before_vs_after$fluct_motrice_before, Before_vs_after$fluct_motrice_
 
 Before_vs_after %>% group_by(fluct_motrice_before) %>% count() %>% mutate(n=n/36)
 Before_vs_after %>% group_by(fluct_motrice_after) %>% count() %>% mutate(n=n/36)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(fluct_motrice_before, fluct_motrice_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "fluct_motrice"
+  ) %>%
+  mutate(
+    time = ifelse(time == "fluct_motrice_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$fluct_motrice)
+
+data_long$fluct_motrice <- factor(data_long$fluct_motrice, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(fluct_motrice ~ time , data = data_long)
+
+summary(model)
 
 # ------------------
 
@@ -1804,6 +2100,31 @@ Before_vs_after %>% group_by(dyskinesie_after) %>% count() %>% mutate(n=n/145)
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dyskinesie_before, dyskinesie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dyskinesie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dyskinesie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dyskinesie)
+
+data_long$dyskinesie <- factor(data_long$dyskinesie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dyskinesie ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 120 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, dyskinesie, elapsed) %>% rename("dyskinesie_before"="dyskinesie") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -1860,6 +2181,32 @@ Before_vs_after %>% group_by(dyskinesie_after) %>% count() %>% mutate(n=n/120)
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dyskinesie_before, dyskinesie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dyskinesie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dyskinesie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dyskinesie)
+
+data_long$dyskinesie <- factor(data_long$dyskinesie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dyskinesie ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 57 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, dyskinesie, elapsed) %>% rename("dyskinesie_before"="dyskinesie") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -1912,6 +2259,27 @@ Before_vs_after %>% group_by(dyskinesie_after) %>% count() %>% mutate(n=n/55)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dyskinesie_before, dyskinesie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dyskinesie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dyskinesie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dyskinesie)
+
+data_long$dyskinesie <- factor(data_long$dyskinesie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dyskinesie ~ time , data = data_long)
+
+summary(model)
 
 
 # All 36 within 12 months
@@ -1970,6 +2338,30 @@ wilcox.test(Before_vs_after$dyskinesie_before, Before_vs_after$dyskinesie_after,
 
 Before_vs_after %>% group_by(dyskinesie_before) %>% count() %>% mutate(n=n/36)
 Before_vs_after %>% group_by(dyskinesie_after) %>% count() %>% mutate(n=n/36)
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dyskinesie_before, dyskinesie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dyskinesie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dyskinesie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dyskinesie)
+
+data_long$dyskinesie <- factor(data_long$dyskinesie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dyskinesie ~ time , data = data_long)
+
+summary(model)
+
 
 # ------------------
 
@@ -2114,6 +2506,28 @@ Before_vs_after %>% group_by(dysarthrie_after) %>% count() %>% mutate(n=n/142)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dysarthrie_before, dysarthrie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dysarthrie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dysarthrie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dysarthrie)
+
+data_long$dysarthrie <- factor(data_long$dysarthrie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dysarthrie ~ time , data = data_long)
+
+summary(model)
+
+
 # All 117 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, dysarthrie, elapsed) %>% rename("dysarthrie_before"="dysarthrie") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2168,6 +2582,27 @@ Before_vs_after %>% group_by(dysarthrie_after) %>% count() %>% mutate(n=n/117)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dysarthrie_before, dysarthrie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dysarthrie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dysarthrie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dysarthrie)
+
+data_long$dysarthrie <- factor(data_long$dysarthrie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dysarthrie ~ time , data = data_long)
+
+summary(model)
+
 # All 54 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, dysarthrie, elapsed) %>% rename("dysarthrie_before"="dysarthrie") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2218,6 +2653,27 @@ Before_vs_after %>% group_by(dysarthrie_after) %>% count() %>% mutate(n=n/54)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dysarthrie_before, dysarthrie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dysarthrie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dysarthrie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dysarthrie)
+
+data_long$dysarthrie <- factor(data_long$dysarthrie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dysarthrie ~ time , data = data_long)
+
+summary(model)
 
 
 # All 35 within 12 months
@@ -2282,6 +2738,29 @@ Before_vs_after %>% group_by(dysarthrie_after) %>% count() %>% mutate(n=n/35)
 cor(Before_vs_after$tci_before, Before_vs_after$dysarthrie_before)
 cor(Before_vs_after$tci_after, Before_vs_after$dysarthrie_after)
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(dysarthrie_before, dysarthrie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "dysarthrie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "dysarthrie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$dysarthrie)
+
+data_long$dysarthrie <- factor(data_long$dysarthrie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(dysarthrie ~ time , data = data_long)
+
+summary(model)
 
 # ------------------
 
@@ -2366,6 +2845,30 @@ Before_vs_after %>% group_by(freezing_after) %>% count() %>% mutate(n=n/144)
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(freezing_before, freezing_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "freezing"
+  ) %>%
+  mutate(
+    time = ifelse(time == "freezing_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$freezing)
+
+data_long$freezing <- factor(data_long$freezing, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(freezing ~ time , data = data_long)
+
+summary(model)
+
+
 # All 117 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, freezing, elapsed) %>% rename("freezing_before"="freezing") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2406,6 +2909,29 @@ Before_vs_after %>% group_by(freezing_after) %>% count() %>% mutate(n=n/117)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(freezing_before, freezing_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "freezing"
+  ) %>%
+  mutate(
+    time = ifelse(time == "freezing_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$freezing)
+
+data_long$freezing <- factor(data_long$freezing, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(freezing ~ time , data = data_long)
+
+summary(model)
+
+
 # All 54 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, freezing, elapsed) %>% rename("freezing_before"="freezing") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2443,6 +2969,29 @@ wilcox.test(Before_vs_after$freezing_before, Before_vs_after$freezing_after, pai
 Before_vs_after %>% group_by(freezing_before) %>% count() %>% mutate(n=n/54)
 Before_vs_after %>% group_by(freezing_after) %>% count() %>% mutate(n=n/54)
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(freezing_before, freezing_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "freezing"
+  ) %>%
+  mutate(
+    time = ifelse(time == "freezing_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$freezing)
+
+data_long$freezing <- factor(data_long$freezing, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(freezing ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -2499,6 +3048,28 @@ Before_vs_after %>% group_by(freezing_after) %>% count() %>% mutate(n=n/34)
 cor(Before_vs_after$tci_before, Before_vs_after$freezing_before)
 cor(Before_vs_after$tci_after, Before_vs_after$freezing_after)
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(freezing_before, freezing_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "freezing"
+  ) %>%
+  mutate(
+    time = ifelse(time == "freezing_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$freezing)
+
+data_long$freezing <- factor(data_long$freezing, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(freezing ~ time , data = data_long)
+
+summary(model)
 
 # ------------------
 
@@ -2583,6 +3154,32 @@ Before_vs_after %>% group_by(chute_instab_after) %>% count() %>% mutate(n=n/142)
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_instab_before, chute_instab_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute_instab"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_instab_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute_instab)
+
+data_long$chute_instab <- factor(data_long$chute_instab, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute_instab ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 117 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, chute_instab, elapsed) %>% rename("chute_instab_before"="chute_instab") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2623,6 +3220,27 @@ Before_vs_after %>% group_by(chute_instab_after) %>% count() %>% mutate(n=n/117)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_instab_before, chute_instab_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute_instab"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_instab_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute_instab)
+
+data_long$chute_instab <- factor(data_long$chute_instab, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute_instab ~ time , data = data_long)
+
+summary(model)
+
 # All 54 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, chute_instab, elapsed) %>% rename("chute_instab_before"="chute_instab") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2662,6 +3280,26 @@ Before_vs_after %>% group_by(chute_instab_after) %>% count() %>% mutate(n=n/54)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_instab_before, chute_instab_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute_instab"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_instab_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute_instab)
+
+data_long$chute_instab <- factor(data_long$chute_instab, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute_instab ~ time , data = data_long)
+
+summary(model)
 
 
 # All 34 within 12 months
@@ -2717,6 +3355,28 @@ cor(Before_vs_after$tci_before, Before_vs_after$chute_instab_before)
 cor(Before_vs_after$tci_after, Before_vs_after$chute_instab_after)
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_instab_before, chute_instab_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute_instab"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_instab_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute_instab)
+
+data_long$chute_instab <- factor(data_long$chute_instab, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute_instab ~ time , data = data_long)
+
+summary(model)
+
 # ------------------
 
 
@@ -2725,7 +3385,7 @@ Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
 Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
 MPs <- Inclusion_20241028 <- Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
 length(unique(Consultation_20241028$anonyme_id)) # 31988
-Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)na
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
 length(unique(Consultation_20241028$anonyme_id)) # 25449
 Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
 
@@ -2800,6 +3460,29 @@ Before_vs_after %>% group_by(deform_post_after) %>% count() %>% mutate(n=n/136)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(deform_post_before, deform_post_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "deform"
+  ) %>%
+  mutate(
+    time = ifelse(time == "deform_post_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$deform)
+
+data_long$deform <- factor(data_long$deform, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(deform ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 117 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, deform_post, elapsed) %>% rename("deform_post_before"="deform_post") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2840,6 +3523,29 @@ Before_vs_after %>% group_by(deform_post_after) %>% count() %>% mutate(n=n/117)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(deform_post_before, deform_post_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "deform"
+  ) %>%
+  mutate(
+    time = ifelse(time == "deform_post_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$deform)
+
+data_long$deform <- factor(data_long$deform, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(deform ~ time , data = data_long)
+
+summary(model)
+
+
 # All 54 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, deform_post, elapsed) %>% rename("deform_post_before"="deform_post") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -2878,6 +3584,28 @@ Before_vs_after %>% group_by(deform_post_before) %>% count() %>% mutate(n=n/51)
 Before_vs_after %>% group_by(deform_post_after) %>% count() %>% mutate(n=n/51)
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(deform_post_before, deform_post_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "deform"
+  ) %>%
+  mutate(
+    time = ifelse(time == "deform_post_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$deform)
+
+data_long$deform <- factor(data_long$deform, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(deform ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -2932,6 +3660,33 @@ Before_vs_after %>% group_by(deform_post_after) %>% count() %>% mutate(n=n/31)
 
 cor(Before_vs_after$tci_before, Before_vs_after$deform_post_before)
 cor(Before_vs_after$tci_after, Before_vs_after$deform_post_after)
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(deform_post_before, deform_post_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "deform"
+  ) %>%
+  mutate(
+    time = ifelse(time == "deform_post_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$deform)
+
+data_long$deform <- factor(data_long$deform, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(deform ~ time , data = data_long)
+
+summary(model)
+
+
+
 
 
 # ------------------
@@ -3017,6 +3772,32 @@ Before_vs_after %>% group_by(tr_degl_after) %>% count() %>% mutate(n=n/141)
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_degl_before, tr_degl_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_degl"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_degl_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_degl)
+
+data_long$tr_degl <- factor(data_long$tr_degl, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_degl ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 116 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, tr_degl, elapsed) %>% rename("tr_degl_before"="tr_degl") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3054,6 +3835,30 @@ wilcox.test(Before_vs_after$tr_degl_before, Before_vs_after$tr_degl_after, paire
 
 Before_vs_after %>% group_by(tr_degl_before) %>% count() %>% mutate(n=n/116)
 Before_vs_after %>% group_by(tr_degl_after) %>% count() %>% mutate(n=n/116)
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_degl_before, tr_degl_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_degl"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_degl_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_degl)
+
+data_long$tr_degl <- factor(data_long$tr_degl, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_degl ~ time , data = data_long)
+
+summary(model)
+
 
 
 
@@ -3095,6 +3900,27 @@ Before_vs_after %>% group_by(tr_degl_before) %>% count() %>% mutate(n=n/51)
 Before_vs_after %>% group_by(tr_degl_after) %>% count() %>% mutate(n=n/51)
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_degl_before, tr_degl_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_degl"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_degl_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_degl)
+
+data_long$tr_degl <- factor(data_long$tr_degl, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_degl ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -3149,6 +3975,32 @@ Before_vs_after %>% group_by(tr_degl_after) %>% count() %>% mutate(n=n/33)
 
 cor(Before_vs_after$tci_before, Before_vs_after$tr_degl_before)
 cor(Before_vs_after$tci_after, Before_vs_after$tr_degl_after)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_degl_before, tr_degl_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_degl"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_degl_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_degl)
+
+data_long$tr_degl <- factor(data_long$tr_degl, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_degl ~ time , data = data_long)
+
+summary(model)
+
 
 
 # ------------------
@@ -3239,6 +4091,30 @@ Before_vs_after %>% group_by(chute_after) %>% count() %>% mutate(n=n/114)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_before, chute_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute)
+
+data_long$chute <- factor(data_long$chute, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 114 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, chute, elapsed) %>% rename("chute_before"="chute") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3274,6 +4150,33 @@ mcnemar.test(data)
 
 Before_vs_after %>% group_by(chute_before) %>% count() %>% mutate(n=n/114)
 Before_vs_after %>% group_by(chute_after) %>% count() %>% mutate(n=n/114)
+
+
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_before, chute_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute)
+
+data_long$chute <- factor(data_long$chute, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -3314,6 +4217,30 @@ mcnemar.test(data)
 Before_vs_after %>% group_by(chute_before) %>% count() %>% mutate(n=n/51)
 Before_vs_after %>% group_by(chute_after) %>% count() %>% mutate(n=n/51)
 
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_before, chute_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute)
+
+data_long$chute <- factor(data_long$chute, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -3363,6 +4290,29 @@ Before_vs_after %>% group_by(chute_before) %>% count() %>% mutate(n=n/33)
 Before_vs_after %>% group_by(chute_after) %>% count() %>% mutate(n=n/33)
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(chute_before, chute_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "chute"
+  ) %>%
+  mutate(
+    time = ifelse(time == "chute_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$chute)
+
+data_long$chute <- factor(data_long$chute, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(chute ~ time , data = data_long)
+
+summary(model)
 
 
 # ------------------
@@ -3451,6 +4401,31 @@ Before_vs_after %>% group_by(digestif_after) %>% count() %>% mutate(n=n/138)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(digestif_before, digestif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "digestif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "digestif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$digestif)
+
+data_long$digestif <- factor(data_long$digestif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(digestif ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 114 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, digestif, elapsed) %>% rename("digestif_before"="digestif") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3489,6 +4464,28 @@ wilcox.test(Before_vs_after$digestif_before, Before_vs_after$digestif_after, pai
 Before_vs_after %>% group_by(digestif_before) %>% count() %>% mutate(n=n/114)
 Before_vs_after %>% group_by(digestif_after) %>% count() %>% mutate(n=n/114)
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(digestif_before, digestif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "digestif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "digestif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$digestif)
+
+data_long$digestif <- factor(data_long$digestif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(digestif ~ time , data = data_long)
+
+summary(model)
 
 
 # All 54 within 24 months
@@ -3530,6 +4527,27 @@ Before_vs_after %>% group_by(digestif_after) %>% count() %>% mutate(n=n/54)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(digestif_before, digestif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "digestif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "digestif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$digestif)
+
+data_long$digestif <- factor(data_long$digestif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(digestif ~ time , data = data_long)
+
+summary(model)
 
 
 # All 34 within 12 months
@@ -3583,6 +4601,31 @@ Before_vs_after %>% group_by(digestif_after) %>% count() %>% mutate(n=n/34)
 
 cor(Before_vs_after$tci_before, Before_vs_after$digestif_before)
 cor(Before_vs_after$tci_after, Before_vs_after$digestif_after)
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(digestif_before, digestif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "digestif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "digestif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$digestif)
+
+data_long$digestif <- factor(data_long$digestif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(digestif ~ time , data = data_long)
+
+summary(model)
+
 
 
 # ------------------
@@ -3668,6 +4711,33 @@ Before_vs_after %>% group_by(urine_after) %>% count() %>% mutate(n=n/139)
 
 
 
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(urine_before, urine_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "urine"
+  ) %>%
+  mutate(
+    time = ifelse(time == "urine_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$urine)
+
+data_long$urine <- factor(data_long$urine, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(urine ~ time , data = data_long)
+
+summary(model)
+
+
+
+
+
 # All 114 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, urine, elapsed) %>% rename("urine_before"="urine") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3708,6 +4778,29 @@ Before_vs_after %>% group_by(urine_after) %>% count() %>% mutate(n=n/114)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(urine_before, urine_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "urine"
+  ) %>%
+  mutate(
+    time = ifelse(time == "urine_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$urine)
+
+data_long$urine <- factor(data_long$urine, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(urine ~ time , data = data_long)
+
+summary(model)
+
+
 # All 53 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, urine, elapsed) %>% rename("urine_before"="urine") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3746,6 +4839,29 @@ Before_vs_after %>% group_by(urine_before) %>% count() %>% mutate(n=n/53)
 Before_vs_after %>% group_by(urine_after) %>% count() %>% mutate(n=n/53)
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(urine_before, urine_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "urine"
+  ) %>%
+  mutate(
+    time = ifelse(time == "urine_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$urine)
+
+data_long$urine <- factor(data_long$urine, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(urine ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -3800,6 +4916,352 @@ Before_vs_after %>% group_by(urine_after) %>% count() %>% mutate(n=n/34)
 
 cor(Before_vs_after$tci_before, Before_vs_after$urine_before)
 cor(Before_vs_after$tci_after, Before_vs_after$urine_after)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(urine_before, urine_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "urine"
+  ) %>%
+  mutate(
+    time = ifelse(time == "urine_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$urine)
+
+data_long$urine <- factor(data_long$urine, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(urine ~ time , data = data_long)
+
+summary(model)
+
+
+# -------------
+# hypotension Before vs After Using Paired Samples -------------------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+names(Consultation_20241028)
+Consultation_20241028$hypotension
+
+Consultation_20241028
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, hypotension,  pompe_date)
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+names(Consultation_20241028)
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci, hypotension))
+
+unique(first_apo$hypotension)
+unique(first_apo$tci)
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  filter(hypotension %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before"))
+
+first_apo <- first_apo %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(hypotension=ifelse(hypotension==">=2","2",hypotension)) %>%
+  mutate(tci=as.numeric(tci)) %>%
+  mutate(hypotension=as.numeric(hypotension))
+
+
+
+
+
+# All 145 available
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_before"="hypotension") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_after"="hypotension") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(hypotension_before=max(hypotension_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(hypotension_after=max(hypotension_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(hypotension_before=ifelse(hypotension_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(hypotension_after=ifelse(hypotension_after>=1,1,0)) %>%
+  group_by(tci_before, hypotension_before, 
+           tci_after, hypotension_after) %>% count()
+
+
+mean(Before_vs_after$hypotension_before,na.rm=T) 
+sd(Before_vs_after$hypotension_before, na.rm=T)  
+
+mean(Before_vs_after$hypotension_after, na.rm=T)  
+sd(Before_vs_after$hypotension_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$hypotension_before, Before_vs_after$hypotension_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(hypotension_before) %>% count() %>% mutate(n=n/145)
+Before_vs_after %>% group_by(hypotension_after) %>% count() %>% mutate(n=n/145)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(hypotension_before, hypotension_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "hypotension"
+  ) %>%
+  mutate(
+    time = ifelse(time == "hypotension_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$hypotension)
+
+data_long$hypotension <- factor(data_long$hypotension, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(hypotension ~ time , data = data_long)
+
+summary(model)
+
+
+
+# All 120 within 60 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_before"="hypotension") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=60) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_after"="hypotension") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-60)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(hypotension_before=max(hypotension_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(hypotension_after=max(hypotension_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(hypotension_before=ifelse(hypotension_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(hypotension_after=ifelse(hypotension_after>=1,1,0)) %>%
+  group_by(tci_before, hypotension_before, 
+           tci_after, hypotension_after) %>% count()
+
+
+mean(Before_vs_after$hypotension_before,na.rm=T) 
+sd(Before_vs_after$hypotension_before, na.rm=T)  
+
+mean(Before_vs_after$hypotension_after, na.rm=T)  
+sd(Before_vs_after$hypotension_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$hypotension_before, Before_vs_after$hypotension_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(hypotension_before) %>% count() %>% mutate(n=n/120)
+Before_vs_after %>% group_by(hypotension_after) %>% count() %>% mutate(n=n/120)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(hypotension_before, hypotension_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "hypotension"
+  ) %>%
+  mutate(
+    time = ifelse(time == "hypotension_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$hypotension)
+
+data_long$hypotension <- factor(data_long$hypotension, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(hypotension ~ time , data = data_long)
+
+summary(model)
+
+
+
+# All 57 within 24 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_before"="hypotension") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_after"="hypotension") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-24)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(hypotension_before=max(hypotension_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(hypotension_after=max(hypotension_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(hypotension_before=ifelse(hypotension_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(hypotension_after=ifelse(hypotension_after>=1,1,0)) %>%
+  group_by(tci_before, hypotension_before, 
+           tci_after, hypotension_after) %>% count()
+
+mean(Before_vs_after$hypotension_before,na.rm=T) 
+sd(Before_vs_after$hypotension_before, na.rm=T)  
+
+mean(Before_vs_after$hypotension_after, na.rm=T)  
+sd(Before_vs_after$hypotension_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$hypotension_before, Before_vs_after$hypotension_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(hypotension_before) %>% count() %>% mutate(n=n/57)
+Before_vs_after %>% group_by(hypotension_after) %>% count() %>% mutate(n=n/57)
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(hypotension_before, hypotension_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "hypotension"
+  ) %>%
+  mutate(
+    time = ifelse(time == "hypotension_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$hypotension)
+
+data_long$hypotension <- factor(data_long$hypotension, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(hypotension ~ time , data = data_long)
+
+summary(model)
+
+
+
+
+# All 35 within 12 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_before"="hypotension") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=12) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, hypotension, elapsed) %>% rename("hypotension_after"="hypotension") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-12)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(hypotension_before=max(hypotension_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(hypotension_after=max(hypotension_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(hypotension_before=ifelse(hypotension_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(hypotension_after=ifelse(hypotension_after>=1,1,0)) %>%
+  group_by(tci_before, hypotension_before, 
+           tci_after, hypotension_after) %>% count()
+
+
+Before_vs_after %>%
+  mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
+  mutate(hypotension_before=ifelse(hypotension_before>=1,1,0)) %>%
+  mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  mutate(hypotension_after=ifelse(hypotension_after>=1,1,0)) %>%
+  group_by(tci_after, hypotension_after) %>% count()
+
+
+
+
+mean(Before_vs_after$hypotension_before,na.rm=T) 
+sd(Before_vs_after$hypotension_before, na.rm=T)  
+
+mean(Before_vs_after$hypotension_after, na.rm=T)  
+sd(Before_vs_after$hypotension_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$hypotension_before, Before_vs_after$hypotension_after, paired = TRUE, alternative = "two.sided")
+
+Before_vs_after %>% group_by(hypotension_before) %>% count() %>% mutate(n=n/35)
+Before_vs_after %>% group_by(hypotension_after) %>% count() %>% mutate(n=n/35)
+
+
+cor(Before_vs_after$tci_before, Before_vs_after$hypotension_before)
+cor(Before_vs_after$tci_after, Before_vs_after$hypotension_after)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(hypotension_before, hypotension_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "hypotension"
+  ) %>%
+  mutate(
+    time = ifelse(time == "hypotension_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$hypotension)
+
+data_long$hypotension <- factor(data_long$hypotension, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(hypotension ~ time , data = data_long)
+
+summary(model)
+
+
+
+# ------------------
+
 
 
 # ------------------
@@ -3885,6 +5347,32 @@ Before_vs_after %>% group_by(apathie_after) %>% count() %>% mutate(n=n/145)
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(apathie_before, apathie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "apathie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "apathie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$apathie)
+
+data_long$apathie <- factor(data_long$apathie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(apathie ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 120 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, apathie, elapsed) %>% rename("apathie_before"="apathie") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -3922,6 +5410,32 @@ wilcox.test(Before_vs_after$apathie_before, Before_vs_after$apathie_after, paire
 
 Before_vs_after %>% group_by(apathie_before) %>% count() %>% mutate(n=n/120)
 Before_vs_after %>% group_by(apathie_after) %>% count() %>% mutate(n=n/120)
+
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(apathie_before, apathie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "apathie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "apathie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$apathie)
+
+data_long$apathie <- factor(data_long$apathie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(apathie ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -3963,6 +5477,27 @@ Before_vs_after %>% group_by(apathie_before) %>% count() %>% mutate(n=n/57)
 Before_vs_after %>% group_by(apathie_after) %>% count() %>% mutate(n=n/57)
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(apathie_before, apathie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "apathie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "apathie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$apathie)
+
+data_long$apathie <- factor(data_long$apathie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(apathie ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4019,6 +5554,33 @@ cor(Before_vs_after$tci_before, Before_vs_after$apathie_before)
 cor(Before_vs_after$tci_after, Before_vs_after$apathie_after)
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(apathie_before, apathie_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "apathie"
+  ) %>%
+  mutate(
+    time = ifelse(time == "apathie_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$apathie)
+
+data_long$apathie <- factor(data_long$apathie, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(apathie ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # ------------------
 
 
@@ -4063,6 +5625,7 @@ first_apo <- first_apo %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
 
 
 
+
 # All 146 available
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, depression, elapsed) %>% rename("depression_before"="depression") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4098,6 +5661,29 @@ wilcox.test(Before_vs_after$depression_before, Before_vs_after$depression_after,
 
 Before_vs_after %>% group_by(depression_before) %>% count() %>% mutate(n=n/146)
 Before_vs_after %>% group_by(depression_after) %>% count() %>% mutate(n=n/146)
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(depression_before, depression_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "depression"
+  ) %>%
+  mutate(
+    time = ifelse(time == "depression_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$depression)
+
+data_long$depression <- factor(data_long$depression, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(depression ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4142,6 +5728,33 @@ Before_vs_after %>% group_by(depression_after) %>% count() %>% mutate(n=n/121)
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(depression_before, depression_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "depression"
+  ) %>%
+  mutate(
+    time = ifelse(time == "depression_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$depression)
+
+data_long$depression <- factor(data_long$depression, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(depression ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 57 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, depression, elapsed) %>% rename("depression_before"="depression") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4180,6 +5793,29 @@ Before_vs_after %>% group_by(depression_before) %>% count() %>% mutate(n=n/57)
 Before_vs_after %>% group_by(depression_after) %>% count() %>% mutate(n=n/57)
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(depression_before, depression_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "depression"
+  ) %>%
+  mutate(
+    time = ifelse(time == "depression_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$depression)
+
+data_long$depression <- factor(data_long$depression, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(depression ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4234,6 +5870,33 @@ Before_vs_after %>% group_by(depression_after) %>% count() %>% mutate(n=n/36)
 
 cor(Before_vs_after$tci_before, Before_vs_after$depression_before)
 cor(Before_vs_after$tci_after, Before_vs_after$depression_after)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(depression_before, depression_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "depression"
+  ) %>%
+  mutate(
+    time = ifelse(time == "depression_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$depression)
+
+data_long$depression <- factor(data_long$depression, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(depression ~ time , data = data_long)
+
+summary(model)
+
+
 
 
 # ------------------
@@ -4319,6 +5982,29 @@ Before_vs_after %>% group_by(anxiete_after) %>% count() %>% mutate(n=n/147)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(anxiete_before, anxiete_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "anxiete"
+  ) %>%
+  mutate(
+    time = ifelse(time == "anxiete_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$anxiete)
+
+data_long$anxiete <- factor(data_long$anxiete, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(anxiete ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 122 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, anxiete, elapsed) %>% rename("anxiete_before"="anxiete") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4328,6 +6014,7 @@ Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(ano
       select(anonyme_id, tci, anxiete, elapsed) %>% rename("anxiete_after"="anxiete") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
       filter(elapsed_after>=(-60)) 
   )
+
 
 Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
   mutate(anxiete_before=max(anxiete_before)) %>%
@@ -4356,6 +6043,31 @@ wilcox.test(Before_vs_after$anxiete_before, Before_vs_after$anxiete_after, paire
 
 Before_vs_after %>% group_by(anxiete_before) %>% count() %>% mutate(n=n/122)
 Before_vs_after %>% group_by(anxiete_after) %>% count() %>% mutate(n=n/122)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(anxiete_before, anxiete_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "anxiete"
+  ) %>%
+  mutate(
+    time = ifelse(time == "anxiete_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$anxiete)
+
+data_long$anxiete <- factor(data_long$anxiete, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(anxiete ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4397,6 +6109,27 @@ Before_vs_after %>% group_by(anxiete_before) %>% count() %>% mutate(n=n/58)
 Before_vs_after %>% group_by(anxiete_after) %>% count() %>% mutate(n=n/58)
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(anxiete_before, anxiete_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "anxiete"
+  ) %>%
+  mutate(
+    time = ifelse(time == "anxiete_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$anxiete)
+
+data_long$anxiete <- factor(data_long$anxiete, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(anxiete ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4451,6 +6184,31 @@ Before_vs_after %>% group_by(anxiete_after) %>% count() %>% mutate(n=n/36)
 
 cor(Before_vs_after$tci_before, Before_vs_after$anxiete_before)
 cor(Before_vs_after$tci_after, Before_vs_after$anxiete_after)
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(anxiete_before, anxiete_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "anxiete"
+  ) %>%
+  mutate(
+    time = ifelse(time == "anxiete_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$anxiete)
+
+data_long$anxiete <- factor(data_long$anxiete, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(anxiete ~ time , data = data_long)
+
+summary(model)
+
 
 
 # ------------------
@@ -4536,6 +6294,29 @@ Before_vs_after %>% group_by(halluc_psy_after) %>% count() %>% mutate(n=n/143)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(halluc_psy_before, halluc_psy_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "halluc_psy"
+  ) %>%
+  mutate(
+    time = ifelse(time == "halluc_psy_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$halluc_psy)
+
+data_long$halluc_psy <- factor(data_long$halluc_psy, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(halluc_psy ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 119 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, halluc_psy, elapsed) %>% rename("halluc_psy_before"="halluc_psy") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4573,6 +6354,32 @@ wilcox.test(Before_vs_after$halluc_psy_before, Before_vs_after$halluc_psy_after,
 
 Before_vs_after %>% group_by(halluc_psy_before) %>% count() %>% mutate(n=n/119)
 Before_vs_after %>% group_by(halluc_psy_after) %>% count() %>% mutate(n=n/119)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(halluc_psy_before, halluc_psy_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "halluc_psy"
+  ) %>%
+  mutate(
+    time = ifelse(time == "halluc_psy_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$halluc_psy)
+
+data_long$halluc_psy <- factor(data_long$halluc_psy, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(halluc_psy ~ time , data = data_long)
+
+summary(model)
+
 
 
 
@@ -4614,6 +6421,30 @@ Before_vs_after %>% group_by(halluc_psy_before) %>% count() %>% mutate(n=n/57)
 Before_vs_after %>% group_by(halluc_psy_after) %>% count() %>% mutate(n=n/57)
 
 
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(halluc_psy_before, halluc_psy_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "halluc_psy"
+  ) %>%
+  mutate(
+    time = ifelse(time == "halluc_psy_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$halluc_psy)
+
+data_long$halluc_psy <- factor(data_long$halluc_psy, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(halluc_psy ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4668,6 +6499,34 @@ Before_vs_after %>% group_by(halluc_psy_after) %>% count() %>% mutate(n=n/35)
 
 cor(Before_vs_after$tci_before, Before_vs_after$halluc_psy_before)
 cor(Before_vs_after$tci_after, Before_vs_after$halluc_psy_after)
+
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(halluc_psy_before, halluc_psy_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "halluc_psy"
+  ) %>%
+  mutate(
+    time = ifelse(time == "halluc_psy_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$halluc_psy)
+
+data_long$halluc_psy <- factor(data_long$halluc_psy, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(halluc_psy ~ time , data = data_long)
+
+summary(model)
+
+
 
 
 # ------------------
@@ -4753,6 +6612,33 @@ Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/144)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(somnolence_before, somnolence_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "somnolence"
+  ) %>%
+  mutate(
+    time = ifelse(time == "somnolence_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$somnolence)
+
+data_long$somnolence <- factor(data_long$somnolence, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(somnolence ~ time , data = data_long)
+
+summary(model)
+
+
+
+
+
+
 # All 119 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4793,6 +6679,32 @@ Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/119)
 
 
 
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(somnolence_before, somnolence_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "somnolence"
+  ) %>%
+  mutate(
+    time = ifelse(time == "somnolence_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$somnolence)
+
+data_long$somnolence <- factor(data_long$somnolence, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(somnolence ~ time , data = data_long)
+
+summary(model)
+
+
+
+
+
 # All 56 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, somnolence, elapsed) %>% rename("somnolence_before"="somnolence") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -4829,6 +6741,31 @@ wilcox.test(Before_vs_after$somnolence_before, Before_vs_after$somnolence_after,
 
 Before_vs_after %>% group_by(somnolence_before) %>% count() %>% mutate(n=n/56)
 Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/56)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(somnolence_before, somnolence_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "somnolence"
+  ) %>%
+  mutate(
+    time = ifelse(time == "somnolence_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$somnolence)
+
+data_long$somnolence <- factor(data_long$somnolence, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(somnolence ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -4885,6 +6822,29 @@ Before_vs_after %>% group_by(somnolence_after) %>% count() %>% mutate(n=n/36)
 
 cor(Before_vs_after$tci_before, Before_vs_after$somnolence_before)
 cor(Before_vs_after$tci_after, Before_vs_after$somnolence_after)
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(somnolence_before, somnolence_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "somnolence"
+  ) %>%
+  mutate(
+    time = ifelse(time == "somnolence_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$somnolence)
+
+data_long$somnolence <- factor(data_long$somnolence, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(somnolence ~ time , data = data_long)
+
+summary(model)
 
 
 # ------------------
@@ -4970,6 +6930,30 @@ Before_vs_after %>% group_by(tr_cognitif_after) %>% count() %>% mutate(n=n/137)
 
 
 
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_cognitif_before, tr_cognitif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_cognitif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_cognitif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_cognitif)
+
+data_long$tr_cognitif <- factor(data_long$tr_cognitif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_cognitif ~ time , data = data_long)
+
+summary(model)
+
+
+
+
 # All 119 within 60 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, tr_cognitif, elapsed) %>% rename("tr_cognitif_before"="tr_cognitif") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -5010,6 +6994,32 @@ Before_vs_after %>% group_by(tr_cognitif_after) %>% count() %>% mutate(n=n/113)
 
 
 
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_cognitif_before, tr_cognitif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_cognitif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_cognitif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_cognitif)
+
+data_long$tr_cognitif <- factor(data_long$tr_cognitif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_cognitif ~ time , data = data_long)
+
+summary(model)
+
+
+
 # All 56 within 24 months
 Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
   select(anonyme_id, tci, tr_cognitif, elapsed) %>% rename("tr_cognitif_before"="tr_cognitif") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
@@ -5047,6 +7057,30 @@ wilcox.test(Before_vs_after$tr_cognitif_before, Before_vs_after$tr_cognitif_afte
 Before_vs_after %>% group_by(tr_cognitif_before) %>% count() %>% mutate(n=n/52)
 Before_vs_after %>% group_by(tr_cognitif_after) %>% count() %>% mutate(n=n/52)
 
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_cognitif_before, tr_cognitif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_cognitif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_cognitif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_cognitif)
+
+data_long$tr_cognitif <- factor(data_long$tr_cognitif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_cognitif ~ time , data = data_long)
+
+summary(model)
 
 
 
@@ -5102,6 +7136,33 @@ Before_vs_after %>% group_by(tr_cognitif_after) %>% count() %>% mutate(n=n/35)
 
 cor(Before_vs_after$tci_before, Before_vs_after$tr_cognitif_before)
 cor(Before_vs_after$tci_after, Before_vs_after$tr_cognitif_after)
+
+
+
+
+
+data_long <- Before_vs_after %>%
+  pivot_longer(
+    cols = c(tr_cognitif_before, tr_cognitif_after),
+    names_to = "time",  # Create a new column to store "before" or "after"
+    values_to = "tr_cognitif"
+  ) %>%
+  mutate(
+    time = ifelse(time == "tr_cognitif_before", "before", "after"), # Simplify names
+    time = factor(time, levels = c("before", "after")) # Ensure the correct order
+  )
+
+library(ordinal)
+
+unique(data_long$tr_cognitif)
+
+data_long$tr_cognitif <- factor(data_long$tr_cognitif, levels = c(0, 1, 2, 3, 4), ordered = TRUE)
+
+model <- clm(tr_cognitif ~ time , data = data_long)
+
+summary(model)
+
+
 
 
 # ------------------
@@ -6083,3 +8144,420 @@ Consultation_20241028 %>% select(anonyme_id, pompe_date) %>%
 
 
 # -------------
+
+# How many patients per center -----------------
+pats_to_track <- fread("pats8to8track.txt")
+
+
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+
+Cohorte_NS_PARK_Correspondance_No_centre <- read_excel(path = "Cohorte NS-PARK_Correspondance No centre.xlsx")
+
+names(Consultation_20241028)
+
+Consultation_20241028 %>% select(redcap_data_access_group, anonyme_id) %>% distinct() %>%
+  inner_join(pats_to_track) %>%
+  group_by(redcap_data_access_group) %>% count() %>% arrange(-n)
+
+redcap_data_access_group     n
+1 paris                       27
+2 poitiers                    23
+3 nice                        14
+4 toulouse                    14
+5 nmes                        13
+6 reims                       13
+7 creteil                     10
+8 caen                         8
+9 lille                        8
+10 limoges                      6
+11 lyon                         6
+12 bordeaux                     2
+13 marseille                    1
+14 nancy                        1
+15 nantes                       1
+16 rennes                       1
+17 rouen                        1
+
+# -----------
+
+# Pair patients who did not receive apo pump and see their tci over time Propensity matching -----------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+
+MPs <- Inclusion_20241028 <- Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+# Apomorphine patients
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, pompe_date)
+
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci))
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before")) %>%
+  mutate(tci=parse_number(tci))  
+
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+  select(anonyme_id, tci, elapsed,act_datedeb ) %>% rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>% rename("act_datedeb_before"="act_datedeb") %>% 
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+      select(anonyme_id, tci, elapsed, act_datedeb) %>% rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") %>% rename("act_datedeb_after"="act_datedeb") %>% 
+      filter(elapsed_after>=(-24))
+  )
+
+Before_vs_after <- Before_vs_after %>% distinct()
+
+mean(Before_vs_after$tci_before)
+mean(Before_vs_after$tci_after)
+
+pats_apo_to_pair <- Before_vs_after %>% select(anonyme_id) 
+
+
+
+
+# All patients all data, inc apo
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+data_all <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, hoehn_yahr_on, pompe_date, fluct_motrice, dyskinesie)
+data_all$act_datedeb <- as.Date(data_all$act_datedeb)
+data_all$pompe_date <- as.Date(data_all$pompe_date)
+data_all <- data_all %>% arrange(anonyme_id, redcap_repeat_instance)
+data_all <- data_all %>% left_join(Inclusion_20241028 %>% select(anonyme_id, pat_sexe, pat_ddn_a, diag_date_a))
+length(unique(data_all$anonyme_id))  # 25107
+data_all <- data_all %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci)) 
+data_all <- data_all %>% mutate(fluct_motrice=ifelse(fluct_motrice==">=2","2",fluct_motrice)) %>%
+  mutate(fluct_motrice=as.numeric(fluct_motrice)) 
+data_all <- data_all %>% mutate(dyskinesie=ifelse(dyskinesie==">=2","2",dyskinesie)) %>%
+  mutate(dyskinesie=as.numeric(dyskinesie)) 
+
+
+data_all <- data_all %>%  mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) 
+data_all <- data_all %>%  mutate(pat_sexe =ifelse(pat_sexe =="H",1,0)) 
+data_all <- data_all %>% mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year))
+
+
+v2_controls <- data_all %>% anti_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct()) %>% select(-pompe_date)
+
+v2_pumps <- data_all %>% inner_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct()) %>% select(-pompe_date)
+
+
+
+combined_data <- bind_rows(
+  v2_pumps %>% mutate(group = 1),
+  v2_controls %>% mutate(group = 0)
+)
+
+
+library(missMDA)
+
+
+act_datedeb <- combined_data %>% select(act_datedeb)
+
+combined_data <- combined_data %>% select(-act_datedeb)
+
+combined_data_imputed <- imputePCA(combined_data,ncp=2, scale = T)
+
+combined_data_imputed <- data.frame(combined_data_imputed$completeObs)
+
+combined_data_imputed <- combined_data_imputed %>% bind_cols(act_datedeb)
+
+names(combined_data_imputed)
+
+
+
+
+
+library(MatchIt)
+
+# Fit Propensity Score Model
+ps_model <- matchit(
+  group ~ pat_sexe + age + disease_dur + hoehn_yahr_on + fluct_motrice + dyskinesie ,
+  data = combined_data_imputed,
+  method = "nearest",  # Nearest neighbor matching
+  distance = "logit",  # Logistic regression for propensity score
+  ratio = 5            # 5 controls per PUMP
+)
+
+
+
+matched_data <- match.data(ps_model)
+head(matched_data)
+
+
+
+library(cobalt)
+
+# Plot Covariate Balance Before and After Matching
+love.plot(ps_model, threshold = 0.1)  # Add threshold line at |SMD| = 0.1
+
+
+
+
+
+# Add propensity scores to the original dataset
+combined_data_imputed$ps <- ps_model$distance
+
+
+# Plot Propensity Score Distribution
+ggplot(combined_data_imputed, aes(x = ps, fill = as.factor(group))) +
+  geom_density(alpha = 0.5) +
+  labs(
+    title = "Propensity Score Distribution",
+    x = "Propensity Score",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  xlim(0,0.1)
+
+
+
+combined_data_imputed %>%
+  filter(act_datedeb>="2016-01-01" & act_datedeb<="2024-12-31") %>% 
+  filter(redcap_repeat_instance<=10) %>%
+  mutate(group=ifelse(group==1, "Apo pump", "Control")) %>%
+  ggplot(aes(redcap_repeat_instance, tci, color=group, fill=group )) +
+  geom_smooth(method="gam", se=F) +
+  coord_cartesian(ylim=c(0,0.3)) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10, vjust = -0.5),
+        axis.title.y = element_text(size = 10, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt")) +
+  scale_color_manual(values=c("#558EA9", "#A955A7")) +
+  scale_fill_manual(values=c("#558EA9", "#A955A7")) +
+  xlab("\n Evaluation Number") +
+  ylab("ICD Fit Score \n")
+
+
+combined_data_imputed %>%
+  filter(act_datedeb>="2016-01-01" & act_datedeb<="2024-12-31") %>% 
+  filter(redcap_repeat_instance<=10) %>%
+  mutate(group=ifelse(group==1, "Apo pump", "Control")) %>%
+  ggplot(aes(act_datedeb, tci, color=group, fill=group )) +
+  geom_smooth(method="gam", se=F) +
+  coord_cartesian(ylim=c(0,0.3)) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10, vjust = -0.5),
+        axis.title.y = element_text(size = 10, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt")) +
+  scale_color_manual(values=c("#558EA9", "#A955A7")) +
+  scale_fill_manual(values=c("#558EA9", "#A955A7")) +
+  xlab("\n Evaluation Number") +
+  ylab("Average ICD Score \n")
+
+
+# -------------
+
+# ttt_nb_levodopa Before vs After Using Paired Samples -------------------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, ttt_nb_levodopa,  pompe_date)
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+names(Consultation_20241028)
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci, ttt_nb_levodopa))
+
+unique(first_apo$ttt_nb_levodopa)
+unique(first_apo$tci)
+
+first_apo$ttt_nb_levodopa <- as.numeric(first_apo$ttt_nb_levodopa)
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before"))
+
+first_apo <- first_apo %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci))
+
+
+
+
+# All 145 available
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_before"="ttt_nb_levodopa") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_after"="ttt_nb_levodopa") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(ttt_nb_levodopa_before=max(ttt_nb_levodopa_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(ttt_nb_levodopa_after=max(ttt_nb_levodopa_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+mean(Before_vs_after$ttt_nb_levodopa_before,na.rm=T) 
+sd(Before_vs_after$ttt_nb_levodopa_before, na.rm=T)  
+
+mean(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+sd(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$ttt_nb_levodopa_before, Before_vs_after$ttt_nb_levodopa_after, paired = TRUE, alternative = "two.sided")
+
+
+
+# All 120 within 60 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_before"="ttt_nb_levodopa") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=60) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_after"="ttt_nb_levodopa") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-60)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(ttt_nb_levodopa_before=max(ttt_nb_levodopa_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(ttt_nb_levodopa_after=max(ttt_nb_levodopa_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+
+
+mean(Before_vs_after$ttt_nb_levodopa_before,na.rm=T) 
+sd(Before_vs_after$ttt_nb_levodopa_before, na.rm=T)  
+
+mean(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+sd(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$ttt_nb_levodopa_before, Before_vs_after$ttt_nb_levodopa_after, paired = TRUE, alternative = "two.sided")
+
+
+
+# All 57 within 24 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_before"="ttt_nb_levodopa") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_after"="ttt_nb_levodopa") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-24)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(ttt_nb_levodopa_before=max(ttt_nb_levodopa_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(ttt_nb_levodopa_after=max(ttt_nb_levodopa_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+
+mean(Before_vs_after$ttt_nb_levodopa_before,na.rm=T) 
+sd(Before_vs_after$ttt_nb_levodopa_before, na.rm=T)  
+
+mean(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+sd(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$ttt_nb_levodopa_before, Before_vs_after$ttt_nb_levodopa_after, paired = TRUE, alternative = "two.sided")
+
+
+
+# All 35 within 12 months
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+  select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_before"="ttt_nb_levodopa") %>%  rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>%
+  filter(elapsed_before<=12) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>% 
+      select(anonyme_id, tci, ttt_nb_levodopa, elapsed) %>% rename("ttt_nb_levodopa_after"="ttt_nb_levodopa") %>%   rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed")  %>%
+      filter(elapsed_after>=(-12)) 
+  )
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id, elapsed_before) %>% 
+  mutate(ttt_nb_levodopa_before=max(ttt_nb_levodopa_before)) %>%
+  mutate(tci_before=max(tci_before)) %>%
+  ungroup() %>%
+  group_by(anonyme_id, elapsed_after) %>% 
+  mutate(ttt_nb_levodopa_after=max(ttt_nb_levodopa_after)) %>% 
+  mutate(tci_after=max(tci_after)) %>% ungroup()  %>% distinct()
+
+
+mean(Before_vs_after$ttt_nb_levodopa_before,na.rm=T) 
+sd(Before_vs_after$ttt_nb_levodopa_before, na.rm=T)  
+
+mean(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+sd(Before_vs_after$ttt_nb_levodopa_after, na.rm=T)  
+
+wilcox.test(Before_vs_after$ttt_nb_levodopa_before, Before_vs_after$ttt_nb_levodopa_after, paired = TRUE, alternative = "two.sided")
+
+
+# ------------------
+
