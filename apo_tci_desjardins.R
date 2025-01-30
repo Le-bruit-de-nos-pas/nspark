@@ -2,6 +2,7 @@
 library(tidyverse) 
 library(data.table)
 library(readxl)
+library(lubridate)
 
 # PÄIN Before vs After Using Paired Samples --------------------
 Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
@@ -8560,4 +8561,368 @@ wilcox.test(Before_vs_after$ttt_nb_levodopa_before, Before_vs_after$ttt_nb_levod
 
 
 # ------------------
+
+
+# Pair patients who did not receive apo pump and see their tci over time Propensity matching check longitudinal model -----------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+
+MPs <- Inclusion_20241028 <- Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+# Apomorphine patients
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, pompe_date)
+
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci))
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before")) %>%
+  mutate(tci=parse_number(tci))  
+
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+  select(anonyme_id, tci, elapsed,act_datedeb ) %>% rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>% rename("act_datedeb_before"="act_datedeb") %>% 
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+      select(anonyme_id, tci, elapsed, act_datedeb) %>% rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") %>% rename("act_datedeb_after"="act_datedeb") %>% 
+      filter(elapsed_after>=(-24))
+  )
+
+Before_vs_after <- Before_vs_after %>% distinct()
+
+mean(Before_vs_after$tci_before)
+mean(Before_vs_after$tci_after)
+
+pats_apo_to_pair <- Before_vs_after %>% select(anonyme_id) 
+
+
+
+
+# All patients all data, inc apo
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+data_all <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, hoehn_yahr_on, pompe_date, fluct_motrice, dyskinesie)
+data_all$act_datedeb <- as.Date(data_all$act_datedeb)
+data_all$pompe_date <- as.Date(data_all$pompe_date)
+data_all <- data_all %>% arrange(anonyme_id, redcap_repeat_instance)
+data_all <- data_all %>% left_join(Inclusion_20241028 %>% select(anonyme_id, pat_sexe, pat_ddn_a, diag_date_a))
+length(unique(data_all$anonyme_id))  # 25107
+data_all <- data_all %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci)) 
+data_all <- data_all %>% mutate(fluct_motrice=ifelse(fluct_motrice==">=2","2",fluct_motrice)) %>%
+  mutate(fluct_motrice=as.numeric(fluct_motrice)) 
+data_all <- data_all %>% mutate(dyskinesie=ifelse(dyskinesie==">=2","2",dyskinesie)) %>%
+  mutate(dyskinesie=as.numeric(dyskinesie)) 
+
+
+data_all <- data_all %>%  mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) 
+data_all <- data_all %>%  mutate(pat_sexe =ifelse(pat_sexe =="H",1,0)) 
+data_all <- data_all %>% mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year))
+
+
+v2_controls <- data_all %>% anti_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct()) %>% select(-pompe_date)
+
+v2_pumps <- data_all %>% inner_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct()) %>% select(-pompe_date)
+
+
+
+combined_data <- bind_rows(
+  v2_pumps %>% mutate(group = 1),
+  v2_controls %>% mutate(group = 0)
+)
+
+
+library(missMDA)
+
+
+act_datedeb <- combined_data %>% select(act_datedeb)
+
+combined_data <- combined_data %>% select(-act_datedeb)
+
+combined_data_imputed <- imputePCA(combined_data,ncp=2, scale = T)
+
+combined_data_imputed <- data.frame(combined_data_imputed$completeObs)
+
+combined_data_imputed <- combined_data_imputed %>% bind_cols(act_datedeb)
+
+names(combined_data_imputed)
+
+
+
+library(MatchIt)
+
+# Fit Propensity Score Model
+ps_model <- matchit(
+  group ~ pat_sexe + age + disease_dur + hoehn_yahr_on + fluct_motrice + dyskinesie ,
+  data = combined_data_imputed,
+  method = "nearest",  # Nearest neighbor matching
+  distance = "logit",  # Logistic regression for propensity score
+  ratio = 5            # 5 controls per PUMP
+)
+
+
+matched_data <- match.data(ps_model)
+head(matched_data)
+
+
+library(cobalt)
+
+# Plot Covariate Balance Before and After Matching
+love.plot(ps_model, threshold = 0.1)  # Add threshold line at |SMD| = 0.1
+
+
+
+# Add propensity scores to the original dataset
+combined_data_imputed$ps <- ps_model$distance
+
+library(lme4)
+
+v2_combined_data_imputed <- combined_data_imputed %>% mutate(fluct_motrice=ifelse(fluct_motrice<=0,0,1))
+
+
+v2_combined_data_imputed %>% group_by(group) %>% summarise(mean=mean(fluct_motrice))
+
+
+model <- glm(fluct_motrice  ~ redcap_repeat_instance * group , 
+             data = v2_combined_data_imputed, family = binomial)
+
+summary(model)
+
+# -------------
+
+# Propensity matching  Visit before vs after 5:1 for each visit -----------
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+
+MPs <- Inclusion_20241028 <- Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+
+
+# Apomorphine patients
+
+data <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, pompe_date)
+
+data$act_datedeb <- as.Date(data$act_datedeb)
+data$pompe_date <- as.Date(data$pompe_date)
+
+data <- data %>% arrange(anonyme_id, redcap_repeat_instance)
+
+apo_pats <- data %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342 with apo
+
+data <- apo_pats %>% left_join(data) %>% filter(!is.na(act_datedeb)) %>%
+  group_by(anonyme_id) %>% count() %>% filter(n>1) %>% # 262 > 1 visit with known date
+  select(anonyme_id) %>% left_join(data) %>% ungroup() %>% filter(!is.na(act_datedeb)) 
+
+first_apo <- data %>% filter(!is.na(pompe_date)) %>% group_by(anonyme_id) %>%
+  summarise(pompe_date=min(pompe_date)) %>% distinct()  # 258
+
+first_apo <- first_apo %>% left_join(data %>% select(anonyme_id, act_datedeb, tci))
+
+first_apo <- first_apo %>% mutate(elapsed=interval(act_datedeb,pompe_date ) %/% months(1)) %>%
+  filter(tci %in% c("1","0",">=2", "2", "3", "4")) %>% 
+  mutate(before_after=ifelse(act_datedeb>pompe_date, "after", "before")) %>%
+  mutate(tci=parse_number(tci))  
+
+Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+  select(anonyme_id, tci, elapsed,act_datedeb ) %>% rename("tci_before"="tci") %>% rename("elapsed_before"="elapsed") %>% rename("act_datedeb_before"="act_datedeb") %>% 
+  filter(elapsed_before<=24) %>%
+  inner_join(
+    first_apo %>% filter(before_after=="after") %>% group_by(anonyme_id) %>% filter(elapsed==max(elapsed)) %>%
+      select(anonyme_id, tci, elapsed, act_datedeb) %>% rename("tci_after"="tci") %>% rename("elapsed_after"="elapsed") %>% rename("act_datedeb_after"="act_datedeb") %>% 
+      filter(elapsed_after>=(-24))
+  )
+
+
+
+
+Before_vs_after <- Before_vs_after %>% distinct()
+
+mean(Before_vs_after$tci_before)
+mean(Before_vs_after$tci_after)
+
+pats_apo_to_pair <- Before_vs_after %>% select(anonyme_id) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# All patients all data, inc apo
+Consultation_20241028 <- read_excel(path = "Consultation_20241028.xlsx")
+Inclusion_20241028 <- read_excel(path = "Inclusion_20241028.xlsx")
+MPs <-  Inclusion_20241028 %>% filter(diag=="MP") %>% select(anonyme_id) %>% distinct()
+length(unique(Consultation_20241028$anonyme_id)) # 31988
+Consultation_20241028 <- Consultation_20241028 %>% inner_join(MPs)
+length(unique(Consultation_20241028$anonyme_id)) # 25449
+Consultation_20241028 %>% filter(!is.na(pompe_date)) %>% select(anonyme_id) %>% distinct() # 342
+
+data_all <- Consultation_20241028 %>% select(anonyme_id, redcap_repeat_instance, act_datedeb, tci, hoehn_yahr_on, pompe_date, fluct_motrice, dyskinesie)
+data_all$act_datedeb <- as.Date(data_all$act_datedeb)
+data_all$pompe_date <- as.Date(data_all$pompe_date)
+data_all <- data_all %>% arrange(anonyme_id, redcap_repeat_instance)
+data_all <- data_all %>% left_join(Inclusion_20241028 %>% select(anonyme_id, pat_sexe, pat_ddn_a, diag_date_a))
+length(unique(data_all$anonyme_id))  # 25107
+data_all <- data_all %>% mutate(tci=ifelse(tci==">=2","2",tci)) %>%
+  mutate(tci=as.numeric(tci)) 
+data_all <- data_all %>% mutate(fluct_motrice=ifelse(fluct_motrice==">=2","2",fluct_motrice)) %>%
+  mutate(fluct_motrice=as.numeric(fluct_motrice)) 
+data_all <- data_all %>% mutate(dyskinesie=ifelse(dyskinesie==">=2","2",dyskinesie)) %>%
+  mutate(dyskinesie=as.numeric(dyskinesie)) 
+
+
+data_all <- data_all %>%  mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) 
+data_all <- data_all %>%  mutate(pat_sexe =ifelse(pat_sexe =="H",1,0)) 
+data_all <- data_all %>% mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year))
+
+
+Before_vs_after <- Before_vs_after %>% group_by(anonyme_id) %>% 
+  filter(act_datedeb_before==max(act_datedeb_before)) %>% 
+  filter(act_datedeb_after==min(act_datedeb_after))
+
+pats_to_macth <- Before_vs_after %>% select(anonyme_id, act_datedeb_before) %>% rename("act_datedeb"="act_datedeb_before")  %>%
+  bind_rows(Before_vs_after %>% select(anonyme_id, act_datedeb_after) %>% rename("act_datedeb"="act_datedeb_after"))
+
+group1 <- pats_to_macth %>% ungroup() %>% mutate(group=1) %>% inner_join(data_all) 
+
+
+
+
+group0 <- data_all %>% anti_join(data_all %>% filter(!is.na(pompe_date)) %>% select(anonyme_id)) %>% mutate(group=0)
+
+
+group0 <- group0 %>% select(anonyme_id, act_datedeb, group, redcap_repeat_instance:disease_dur)
+
+
+
+groups <- group1 %>% bind_rows(group0)
+
+
+groups <- groups %>% select(-pompe_date)
+
+library(missMDA)
+
+
+act_datedeb <- groups %>% select(act_datedeb)
+
+combined_data <- groups %>% select(-act_datedeb)
+
+combined_data_imputed <- imputePCA(combined_data,ncp=2, scale = T)
+
+combined_data_imputed <- data.frame(combined_data_imputed$completeObs)
+
+combined_data_imputed <- combined_data_imputed %>% bind_cols(act_datedeb)
+
+names(combined_data_imputed)
+
+
+combined_data_imputed$act_datedeb <- as.numeric(as.Date(combined_data_imputed$act_datedeb, format="%Y-%m-%d"))
+
+combined_data_imputed <- combined_data_imputed %>% filter(act_datedeb>0)
+
+ps_model <- matchit(
+  group ~ pat_sexe + age + disease_dur + hoehn_yahr_on + fluct_motrice + dyskinesie + act_datedeb,
+  data = combined_data_imputed,
+  method = "nearest",   # Nearest neighbor matching
+  distance = "logit",   # Logistic regression for propensity score
+  ratio = 5             # 5 controls per treated
+)
+
+
+
+# Extract matched dataset
+matched_data <- match.data(ps_model)
+
+
+# Check balance after matching
+summary(ps_model)
+
+
+length(unique(matched_data$anonyme_id))
+
+
+matched_data %>% group_by(anonyme_id) %>% 
+  mutate(act_datedeb=ifelse(act_datedeb==min(act_datedeb),1,2)) %>%
+  group_by(group, act_datedeb) %>%
+  summarise(n=mean(tci), sd=sd(tci))
+
+
+
+# Calculate mean and standard error
+data_summary <- matched_data %>% group_by(anonyme_id) %>% 
+  mutate(act_datedeb=ifelse(act_datedeb==min(act_datedeb),1,2)) %>%
+  ungroup() %>%
+  group_by(group, act_datedeb) %>%
+  summarise(
+    mean_tci = mean(tci, na.rm = TRUE),
+    se_tci = sd(tci, na.rm = TRUE) / sqrt(n())  # Standard error
+  )
+
+
+data_summary <- data_summary %>% mutate(group=ifelse(group==0, "A) Never Apo Pump [CSAI]", "B) Apo Pump Experienced [CSAI]"))
+
+data_summary <- data_summary %>% mutate(act_datedeb=ifelse(act_datedeb==1, "1-BEFORE Apo Pump [CSAI]", "2-AFTER Apo Pump [CSAI]"))
+
+
+
+# ------
+
 
