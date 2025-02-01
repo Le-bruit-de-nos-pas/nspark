@@ -297,6 +297,40 @@ df_complet <- data_i %>% bind_cols(df_complet)
 
 fwrite(df_complet, "df_complet.txt")
 
+df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
+
+test <- df_complet %>% select(B, freezing, disease_duration, hoehn_yahr_on) %>%
+    mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+summary(lm(freezing ~ as.factor(B) + disease_duration + hoehn_yahr_on, data=test))
+
+
+summary(lm(freezing ~ as.factor(B) , data=test))
+
+
+library(mediation)
+
+# Step 1: Total Effect
+model_total <- lm(freezing ~ as.factor(B),  data=test)
+
+# Step 2: Mediators Path
+model_mediator1 <- lm(hoehn_yahr_on ~ as.factor(B), data=test)
+model_mediator2 <- lm(disease_duration  ~ as.factor(B), data=test)
+
+# Step 3: Direct and Indirect Effects
+model_direct <- lm(freezing ~ as.factor(B) +hoehn_yahr_on + disease_duration,  data=test)
+
+# Mediation Analysis
+# Mediation Analysis for Each Mediator
+mediate_result1 <- mediate(model_mediator1, model_direct, treat = "as.factor(B)", mediator = "hoehn_yahr_on")
+mediate_result2 <- mediate(model_mediator2, model_direct, treat = "as.factor(B)", mediator = "disease_duration")
+
+# Summary of Mediation Results
+summary(mediate_result1)
+summary(mediate_result2)
+
 
 
 # ---------
