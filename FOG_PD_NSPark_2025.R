@@ -297,6 +297,12 @@ df_complet <- data_i %>% bind_cols(df_complet)
 
 fwrite(df_complet, "df_complet.txt")
 
+# ---------
+
+# Initial distributions overall all patient-visits -------------
+
+df_complet <- fread( "df_complet.txt")
+
 df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
 
 test <- df_complet %>% select(B, freezing, disease_duration, hoehn_yahr_on) %>%
@@ -333,4 +339,203 @@ summary(mediate_result2)
 
 
 
+test %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
+  ggplot(aes(disease_duration, freezing)) +
+  geom_smooth()
+
+
+test %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
+  ggplot(aes(hoehn_yahr_on, freezing)) +
+  geom_jitter()
+
+test %>% group_by(hoehn_yahr_on, freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot) 
+
+
+test %>% group_by(disease_duration , freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
+  mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
+  mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
+  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
+  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot)  %>% ungroup() %>%
+  gather(FOG, value, `0`:`4`) %>%
+  filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
+  ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
+  geom_smooth(se=F, size=2, alpha=0.5) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12, vjust = -0.5),
+        axis.title.y = element_text(size = 12, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt"))  +
+  ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
+  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+
+
+
+
+test %>% group_by(B, freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot) 
+
+
+test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mean(freezing)) %>%
+  filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) %>%
+  mutate(B=ifelse(B==0, "No Levodopa", "ON Levodopa")) %>%
+  ggplot(aes(x = disease_duration, y = hoehn_yahr_on, fill = freezing)) +
+  geom_tile() +  # Heatmap
+  scale_fill_gradient(low = "#F2F2F2", high = "#104862") +  # Color gradient
+  facet_wrap(~B) +  # Separate plots for B=0 and B=1
+  labs(
+   # title = "Heatmap of Disease Duration vs Hoehn-Yahr Stage",
+    x = "\n Disease Duration",
+    y = "Hoehn & Yahr ON \n",
+    fill = "Freezing"
+  ) +
+  theme_minimal() +
+   theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+       # strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12, vjust = -0.5),
+        axis.title.y = element_text(size = 12, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt"))  
+
 # ---------
+# Create the for ealy PD drug groups --------
+
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>% select(-c(freezing, disease_duration))
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) %>%
+  filter(Groups!="Remove")
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+
+first_to_second_visit %>% group_by(Groups, v2_Groups) %>% count()
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing)) %>% 
+  left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing) %>% rename("v2_freezing"="freezing"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+unique(first_to_second_visit$freezing)
+
+first_to_second_visit %>% group_by(freezing) %>% count()
+
+first_to_second_visit <- first_to_second_visit %>% mutate(freezing=ifelse(freezing==1,0,freezing))
+
+unique(first_to_second_visit$v2_freezing)
+
+
+first_to_second_visit <- first_to_second_visit %>% 
+  mutate(v2_freezing=ifelse(v2_freezing==">=2","2",v2_freezing)) %>%
+  mutate(v2_freezing=as.numeric(v2_freezing))
+
+
+first_to_second_visit %>% ungroup() %>%
+  group_by(Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T)) 
+
+
+first_to_second_visit %>% group_by(Groups, freezing, v2_freezing) %>% count()
+
+
+first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==0,0,1)) %>%
+  group_by(Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T))
+
+
+
+tes# ---------
