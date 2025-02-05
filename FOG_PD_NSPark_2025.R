@@ -305,18 +305,21 @@ df_complet <- fread( "df_complet.txt")
 
 df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
 
+
 test <- df_complet %>% select(B, freezing, disease_duration, hoehn_yahr_on) %>%
     mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
   mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
   mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+
+test # 35256 visits
+length(unique(df_complet$anonyme_id...25)) # 25602
 
 summary(lm(freezing ~ as.factor(B) + disease_duration + hoehn_yahr_on, data=test))
 
 
 summary(lm(freezing ~ as.factor(B) , data=test))
 
-
-library(mediation)
 
 # Step 1: Total Effect
 model_total <- lm(freezing ~ as.factor(B),  data=test)
@@ -330,8 +333,8 @@ model_direct <- lm(freezing ~ as.factor(B) +hoehn_yahr_on + disease_duration,  d
 
 # Mediation Analysis
 # Mediation Analysis for Each Mediator
-mediate_result1 <- mediate(model_mediator1, model_direct, treat = "as.factor(B)", mediator = "hoehn_yahr_on")
-mediate_result2 <- mediate(model_mediator2, model_direct, treat = "as.factor(B)", mediator = "disease_duration")
+mediate_result1 <- mediation::mediate(model_mediator1, model_direct, treat = "as.factor(B)", mediator = "hoehn_yahr_on")
+mediate_result2 <- mediation::mediate(model_mediator2, model_direct, treat = "as.factor(B)", mediator = "disease_duration")
 
 # Summary of Mediation Results
 summary(mediate_result1)
@@ -434,6 +437,179 @@ test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mea
         axis.title.x = element_text(size = 12, vjust = -0.5),
         axis.title.y = element_text(size = 12, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt"))  
+
+
+
+
+test
+
+model <- ordinal::clm(as.factor(freezing) ~ as.factor(B) , data = test)
+
+summary(model)
+
+model <- ordinal::clm(as.factor(freezing) ~ as.factor(hoehn_yahr_on) , data = test)
+
+summary(model)
+
+
+
+model <- ordinal::clm(as.factor(freezing) ~ disease_duration , data = test)
+
+summary(model)
+
+
+# ---------
+# Initial distributions overall all patient-visits STARTING WITH FOG = 0 -------------
+
+df_complet <- fread( "df_complet.txt")
+
+df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
+
+
+df_complet <- df_complet %>% group_by(anonyme_id...25) %>% filter(act_datedeb...27==min(act_datedeb...27)) %>%
+  filter(freezing=="0") %>% select(anonyme_id...25) %>% distinct() %>% ungroup() %>%
+  left_join(df_complet)
+
+
+test <- df_complet %>% select(B, freezing, disease_duration, hoehn_yahr_on) %>%
+    mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+
+test # 22987 visits
+length(unique(df_complet$anonyme_id...25)) # 13538
+
+summary(lm(freezing ~ as.factor(B) + disease_duration + hoehn_yahr_on, data=test))
+
+summary(lm(freezing ~ as.factor(B) , data=test))
+
+
+# Step 1: Total Effect
+model_total <- lm(freezing ~ as.factor(B),  data=test)
+
+# Step 2: Mediators Path
+model_mediator1 <- lm(hoehn_yahr_on ~ as.factor(B), data=test)
+model_mediator2 <- lm(disease_duration  ~ as.factor(B), data=test)
+
+# Step 3: Direct and Indirect Effects
+model_direct <- lm(freezing ~ as.factor(B) +hoehn_yahr_on + disease_duration,  data=test)
+
+# Mediation Analysis
+# Mediation Analysis for Each Mediator
+mediate_result1 <- mediation::mediate(model_mediator1, model_direct, treat = "as.factor(B)", mediator = "hoehn_yahr_on")
+mediate_result2 <- mediation::mediate(model_mediator2, model_direct, treat = "as.factor(B)", mediator = "disease_duration")
+
+# Summary of Mediation Results
+summary(mediate_result1)
+summary(mediate_result2)
+
+
+test %>% group_by(hoehn_yahr_on, freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot) 
+
+
+test %>% group_by(disease_duration , freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
+  mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
+  mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
+  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
+  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot)  %>% ungroup() %>%
+  gather(FOG, value, `0`:`4`) %>%
+  filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
+  ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
+  geom_smooth(se=F, size=2, alpha=0.5) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12, vjust = -0.5),
+        axis.title.y = element_text(size = 12, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt"))  +
+  ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
+  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+
+
+
+
+test %>% group_by(B, freezing) %>% count() %>%
+  spread(key=freezing, value=n) %>%
+  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(`0`=`0`/tot) %>%
+  mutate(`1`=`1`/tot) %>%
+  mutate(`2`=`2`/tot) %>%
+  mutate(`3`=`3`/tot) %>%
+  mutate(`4`=`4`/tot) 
+
+
+test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mean(freezing)) %>%
+  filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) %>%
+  mutate(B=ifelse(B==0, "No Levodopa", "ON Levodopa")) %>%
+  ggplot(aes(x = disease_duration, y = hoehn_yahr_on, fill = freezing)) +
+  geom_tile() +  # Heatmap
+  scale_fill_gradient(low = "#F2F2F2", high = "#104862") +  # Color gradient
+  facet_wrap(~B) +  # Separate plots for B=0 and B=1
+  labs(
+   # title = "Heatmap of Disease Duration vs Hoehn-Yahr Stage",
+    x = "\n Disease Duration",
+    y = "Hoehn & Yahr ON \n",
+    fill = "Freezing"
+  ) +
+  theme_minimal() +
+   theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+       # strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12, vjust = -0.5),
+        axis.title.y = element_text(size = 12, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt"))  
+
+
+
+test
+
+model <- ordinal::clm(as.factor(freezing) ~ as.factor(B) , data = test)
+
+summary(model)
+
+
+model <- ordinal::clm(as.factor(freezing) ~ as.factor(hoehn_yahr_on) , data = test)
+
+summary(model)
+
+
+model <- ordinal::clm(as.factor(freezing) ~ disease_duration , data = test)
+
+summary(model)
+
 
 # ---------
 # Create the for ealy PD drug groups --------
@@ -538,4 +714,4 @@ first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==0,0,1)) %>%
 
 
 
-tes# ---------
+# ---------
