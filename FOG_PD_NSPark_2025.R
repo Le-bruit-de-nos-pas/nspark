@@ -1050,3 +1050,313 @@ first_to_second_visit %>% group_by(v2_Groups, freezing_diff) %>% count() %>%
  
 
 # ---------
+# KM Cumulative Freezing Incidence Starting ON Levodopa vs none LD --------
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>% select(-c(freezing, disease_duration))
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+filtered_data <- first_to_second_visit %>%
+  group_by(anonyme_id...1) %>%
+  mutate(first_freezing = which(freezing == 1)[1]) %>%
+  filter(row_number() <= first_freezing | is.na(first_freezing)) %>%
+  ungroup()
+
+# View result
+filtered_data
+
+filtered_data <- filtered_data %>% select(-first_freezing)
+
+
+library(survival)
+library(survminer)
+
+
+
+filtered_data <- filtered_data %>% group_by(anonyme_id...1) %>% filter(elapsed==max(elapsed)) %>% distinct()
+
+data <- filtered_data %>% ungroup() %>% select(-anonyme_id...1) 
+
+data <- data %>% mutate(Groups=ifelse(Groups=="1- LD", "Levodopa Baseline", "no LD baseline"))
+
+km_fit <- survfit(Surv(elapsed, freezing ) ~ Groups   , data = data)
+
+summary(km_fit)
+
+km_fit
+
+
+
+# Step 3: Plot Kaplan-Meier curve
+ggsurvplot(km_fit, data = data, 
+           pval = TRUE,          # Add p-value for log-rank test
+           conf.int = TRUE,      # Add confidence interval
+           #risk.table = TRUE,    # Add risk table to the plot
+           palette = c("#CD3333", "#83CBEB"), # Example color palette
+           ggtheme = theme_minimal(),
+           xlab=("\n Number of Days From Baseline"),
+           ylab=("Proportion FOG-free \n")) # Clean theme
+
+# Step 4: Summary and log-rank test to compare the groups
+summary(km_fit)
+
+# Optional: If you want to do a formal comparison
+log_rank_test <- survdiff(Surv(elapsed, freezing) ~ Groups, data = data)
+
+log_rank_test
+
+# survdiff(formula = Surv(elapsed, freezing) ~ Groups, data = data)
+# 
+#                             N Observed Expected (O-E)^2/E (O-E)^2/V
+# Groups=Levodopa Baseline 1005      198      155     12.15        20
+# Groups=no LD baseline    1385      212      255      7.36        20
+# 
+#  Chisq= 20  on 1 degrees of freedom, p= 8e-06 
+
+# --------
+# KM Cumulative Freezing Incidence NO Levodopa Baseline: Eventualy Experienced vs Always Naive  --------
+
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+
+B_groups <- df_complet %>% select(anonyme_id...1, B) %>% distinct() %>% group_by(anonyme_id...1) %>%
+  summarise(B=max(B))
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(B_groups) %>% ungroup()
+
+unique(first_to_second_visit$B)
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+filtered_data <- first_to_second_visit %>%
+  group_by(anonyme_id...1) %>%
+  mutate(first_freezing = which(freezing == 1)[1]) %>%
+  filter(row_number() <= first_freezing | is.na(first_freezing)) %>%
+  ungroup()
+
+# View result
+filtered_data
+
+filtered_data <- filtered_data %>% select(-first_freezing)
+
+
+library(survival)
+library(survminer)
+
+filtered_data
+
+filtered_data <- filtered_data %>% group_by(anonyme_id...1) %>% filter(elapsed==max(elapsed)) %>% distinct()
+
+data <- filtered_data %>% ungroup() %>% select(-anonyme_id...1) 
+
+data <- data %>% mutate(B=ifelse(B=="1", "Levodopa-experienced", "Levodopa-naive"))
+
+km_fit <- survfit(Surv(elapsed, freezing ) ~ B   , data = data)
+
+summary(km_fit)
+
+km_fit
+
+data %>% group_by(B) %>% count()
+
+# Step 3: Plot Kaplan-Meier curve
+ggsurvplot(km_fit, data = data, 
+           pval = TRUE,          # Add p-value for log-rank test
+           conf.int = TRUE,      # Add confidence interval
+           #risk.table = TRUE,    # Add risk table to the plot
+           palette = c("#CD3333", "#83CBEB"), # Example color palette
+           ggtheme = theme_minimal(),
+           xlab=("\n Number of Days From Baseline"),
+           ylab=("Proportion FOG-free \n")) # Clean theme
+
+# Step 4: Summary and log-rank test to compare the groups
+summary(km_fit)
+
+# Optional: If you want to do a formal comparison
+log_rank_test <- survdiff(Surv(elapsed, freezing) ~ Groups, data = data)
+
+log_rank_test
+
+
+# Call:
+# survdiff(formula = Surv(elapsed, freezing) ~ Groups, data = data)
+# 
+#                             N Observed Expected (O-E)^2/E (O-E)^2/V
+# Groups=Levodopa Baseline 1005      198      155     12.15        20
+# Groups=no LD baseline    1385      212      255      7.36        20
+# 
+#  Chisq= 20  on 1 degrees of freedom, p= 8e-06 
+
+survdiff(Surv(elapsed, freezing) ~ B, data = data, rho = 1)  # Peto-Peto test
+
+coxph(Surv(elapsed, freezing) ~ B, data = data)
+
+
+# ---------
