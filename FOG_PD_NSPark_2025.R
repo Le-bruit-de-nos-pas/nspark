@@ -1360,3 +1360,488 @@ coxph(Surv(elapsed, freezing) ~ B, data = data)
 
 
 # ---------
+# # Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not ------
+ --------
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>% select(-c(freezing, disease_duration))
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing, hoehn_yahr_on )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+unique(data_v$hoehn_yahr_on)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+      mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+
+first_to_second_visit <- first_to_second_visit %>% mutate(Groups=ifelse(Groups=="1- LD", 1, 0))
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+data <- first_to_second_visit
+
+data$elapsed_scaled <- (data$elapsed - mean(data$elapsed)) / 365
+
+
+
+data <- data %>% select(-elapsed) %>% distinct()
+
+data <- data %>% group_by(anonyme_id...1, elapsed_scaled) %>%
+  filter(Groups==max(Groups)) %>% 
+  filter(freezing ==max(freezing )) %>%
+  filter(hoehn_yahr_on ==max(hoehn_yahr_on )) %>% distinct()
+
+
+library(nlme)
+
+# lme_model <- nlme::lme(fixed = hoehn_yahr_on ~ elapsed_scaled + Groups, 
+#                  random = ~ elapsed_scaled | anonyme_id...1, 
+#                  data = data, 
+#                  method = "REML")
+# 
+# summary(lme_model)
+# 
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC     BIC    logLik
+#   13032.44 13081.7 -6509.221
+# 
+# Random effects:
+#  Formula: ~elapsed_scaled | anonyme_id...1
+#  Structure: General positive-definite, Log-Cholesky parametrization
+#                StdDev    Corr  
+# (Intercept)    0.5245166 (Intr)
+# elapsed_scaled 0.1134661 0.287 
+# Residual       0.3815857       
+# 
+# Fixed effects:  hoehn_yahr_on ~ elapsed_scaled + Groups 
+#                    Value   Std.Error   DF   t-value p-value
+# (Intercept)    1.7751650 0.015978444 6099 111.09749       0
+# elapsed_scaled 0.0983330 0.004644928 6099  21.16997       0
+# Groups         0.2453974 0.023382512 2312  10.49491       0
+#  Correlation: 
+#                (Intr) elpsd_
+# elapsed_scaled  0.268       
+# Groups         -0.633  0.005
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -5.47135994 -0.40416260 -0.01407664  0.33813479  4.99219869 
+# 
+# Number of Observations: 8414
+# Number of Groups: 2314 
+
+
+
+data <- first_to_second_visit
+
+data <- data %>% group_by(anonyme_id...1, elapsed) %>% 
+  filter(Groups==max(Groups)) %>%
+  filter(freezing ==max(freezing )) %>%
+  filter(hoehn_yahr_on ==max(hoehn_yahr_on )) %>% ungroup()
+
+
+
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = anonyme_id...1, time = elapsed, hy_stage = hoehn_yahr_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + hy_stage + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+
+# > cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + hy_stage + cluster(ID), data = data)
+# > # Show results
+# > summary(cox_model_td)
+# Call:
+# coxph(formula = Surv(Start, Stop, freezing) ~ Groups + hy_stage, 
+#     data = data, cluster = ID)
+# 
+#   n= 6168, number of events= 920 
+# 
+#             coef exp(coef) se(coef) robust se     z Pr(>|z|)    
+# Groups   0.29993   1.34977  0.06961   0.11149  2.69  0.00714 ** 
+# hy_stage 0.59371   1.81069  0.03669   0.05167 11.49  < 2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#          exp(coef) exp(-coef) lower .95 upper .95
+# Groups       1.350     0.7409     1.085     1.679
+# hy_stage     1.811     0.5523     1.636     2.004
+# 
+# Concordance= 0.688  (se = 0.015 )
+# Likelihood ratio test= 271.7  on 2 df,   p=<2e-16
+# Wald test            = 159.8  on 2 df,   p=<2e-16
+# Score (logrank) test = 314.9  on 2 df,   p=<2e-16,   Robust = 102.9  p=<2e-16
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+# Coefficients Interpretation
+# Variable	Coefficient (coef)	Hazard Ratio (exp(coef))	p-value
+# Groups	0.29993	1.35 (34.9% increased risk)	0.007 (significant)
+# hy_stage	0.59371	1.81 (81.1% increased risk)	<2e-16 (highly significant)
+# Key Takeaways:
+# Groups (HR = 1.35, p = 0.007)
+# → Belonging to a particular group increases the risk of freezing by 35%.
+# Hoehn & Yahr stage (HR = 1.81, p < 2e-16)
+# → A higher Parkinson’s disease stage is strongly associated with an 81% increased risk of freezing.
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+# Fit survival curves based on the Cox model
+surv_fit <- survival::survfit(cox_model_td, newdata = data.frame(Groups = c(0,1), hy_stage = mean(data$hy_stage)))
+
+# Plot survival curves
+survminer::ggsurvplot(surv_fit, data = data,
+           conf.int = TRUE, # Show confidence intervals
+           pval = TRUE, # Show p-value
+           risk.table = TRUE, # Add risk table below plot
+           legend.labs = c("Group 0", "Group 1"),
+           xlab = "Time (Days)",
+           ylab = "Survival Probability",
+           ggtheme = theme_minimal())
+
+
+# -------
+# Linear Mixed-model and time-varying Cox regression - Levodopa-experienced vs naive ------
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+
+B_groups <- df_complet %>% select(anonyme_id...1, B) %>% distinct() %>% group_by(anonyme_id...1) %>%
+  summarise(B=max(B))
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(B_groups) %>% ungroup()
+
+unique(first_to_second_visit$B)
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+
+
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing, hoehn_yahr_on )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+unique(data_v$hoehn_yahr_on)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+      mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+
+first_to_second_visit <- first_to_second_visit %>% mutate(Groups=ifelse(B==1, 1, 0))
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+data <- first_to_second_visit
+
+data$elapsed_scaled <- (data$elapsed - mean(data$elapsed)) / 365
+
+data <- data %>% select(-elapsed) %>% distinct()
+
+data <- data %>% group_by(anonyme_id...1, elapsed_scaled) %>%
+  filter(Groups==max(Groups)) %>% 
+  filter(freezing ==max(freezing )) %>%
+  filter(hoehn_yahr_on ==max(hoehn_yahr_on )) %>% distinct()
+
+
+library(nlme)
+
+lme_model <- nlme::lme(fixed = hoehn_yahr_on ~ elapsed_scaled + Groups,
+                 random = ~ elapsed_scaled | anonyme_id...1,
+                 data = data,
+                 method = "REML")
+
+summary(lme_model)
+ 
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC      BIC   logLik
+#   7595.299 7640.745 -3790.65
+# 
+# Random effects:
+#  Formula: ~elapsed_scaled | anonyme_id...1
+#  Structure: General positive-definite, Log-Cholesky parametrization
+#                StdDev     Corr  
+# (Intercept)    0.50148114 (Intr)
+# elapsed_scaled 0.09962077 0.231 
+# Residual       0.39079009       
+# 
+# Fixed effects:  hoehn_yahr_on ~ elapsed_scaled + Groups 
+#                    Value   Std.Error   DF  t-value p-value
+# (Intercept)    1.7742005 0.025019034 3539 70.91403  0.0000
+# elapsed_scaled 0.0961055 0.005679733 3539 16.92077  0.0000
+# Groups         0.0201149 0.030748281 1338  0.65418  0.5131
+#  Correlation: 
+#                (Intr) elpsd_
+# elapsed_scaled  0.263       
+# Groups         -0.777 -0.074
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -5.34981170 -0.45432504 -0.01560714  0.37211675  4.51636354 
+# 
+# Number of Observations: 4880
+# Number of Groups: 1340 
+
+
+
+
+
+
+data <- first_to_second_visit
+
+data <- data %>% group_by(anonyme_id...1, elapsed) %>% 
+  filter(Groups==max(Groups)) %>%
+  filter(freezing ==max(freezing )) %>%
+  filter(hoehn_yahr_on ==max(hoehn_yahr_on )) %>% ungroup()
+
+
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = anonyme_id...1, time = elapsed, hy_stage = hoehn_yahr_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + hy_stage + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+
+# Call:
+# coxph(formula = Surv(Start, Stop, freezing) ~ Groups + hy_stage, 
+#     data = data, cluster = ID)
+# 
+#   n= 3598, number of events= 487 
+# 
+#              coef exp(coef) se(coef) robust se      z Pr(>|z|)    
+# Groups   -0.15985   0.85227  0.14742   0.19895 -0.803    0.422    
+# hy_stage  0.66165   1.93799  0.04939   0.07147  9.258   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#          exp(coef) exp(-coef) lower .95 upper .95
+# Groups      0.8523      1.173    0.5771     1.259
+# hy_stage    1.9380      0.516    1.6847     2.229
+# 
+# Concordance= 0.695  (se = 0.021 )
+# Likelihood ratio test= 146.8  on 2 df,   p=<2e-16
+# Wald test            = 85.71  on 2 df,   p=<2e-16
+# Score (logrank) test = 176.8  on 2 df,   p=<2e-16,   Robust = 46.25  p=9e-11
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+# Fit survival curves based on the Cox model
+surv_fit <- survival::survfit(cox_model_td, newdata = data.frame(Groups = c(0,1), hy_stage = mean(data$hy_stage)))
+
+# Plot survival curves
+survminer::ggsurvplot(surv_fit, data = data,
+           conf.int = TRUE, # Show confidence intervals
+           pval = TRUE, # Show p-value
+           risk.table = TRUE, # Add risk table below plot
+           legend.labs = c("Group 0", "Group 1"),
+           xlab = "Time (Days)",
+           ylab = "Survival Probability",
+           ggtheme = theme_minimal())
+
+
+
+# --------
+
+
