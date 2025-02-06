@@ -612,7 +612,7 @@ summary(model)
 
 
 # ---------
-# Create the for ealy PD drug groups --------
+# Create the patient funel for early PD drug groups --------
 
 
 df_complet <- fread( "df_complet.txt")
@@ -671,9 +671,17 @@ Groups %>% group_by(Groups) %>% count()
 
 
 
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
 first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
-  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) %>%
-  filter(Groups!="Remove")
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
 
 first_to_second_visit <- first_to_second_visit %>% 
   group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
@@ -681,37 +689,367 @@ first_to_second_visit <- first_to_second_visit %>%
 first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
 first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
 
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+first_to_second_visit %>% group_by(Groups) %>% count() %>% mutate(n=n/2389)
+
+#   Groups       n
+# 1 1- LD     1004
+# 2 2- Other  1385
+first_to_second_visit %>% group_by(v2_Groups) %>% count() %>% mutate(n=n/2389)
 
 first_to_second_visit %>% group_by(Groups, v2_Groups) %>% count()
 
+#   Groups   v2_Groups     n
+# 1 1- LD    1- LD       982
+# 2 1- LD    2- Other     22
+# 3 2- Other 1- LD       443
+# 4 2- Other 2- Other    942
+
+
+mcnemar_table <- table(first_to_second_visit$Groups == "1- LD", first_to_second_visit$v2_Groups == "1- LD")
+
+print(mcnemar_table)
+
+mcnemar.test(mcnemar_table)
+
+# 	McNemar's Chi-squared test with continuity correction
+# 
+# data:  mcnemar_table
+# McNemar's chi-squared = 379.35, df = 1, p-value < 2.2e-16
 
 first_to_second_visit <- first_to_second_visit %>% left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing)) %>% 
   left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing) %>% rename("v2_freezing"="freezing"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
 
 unique(first_to_second_visit$freezing)
 
+first_to_second_visit <- first_to_second_visit %>% group_by(anonyme_id...1, act_datedeb...5, v2_act_datedeb...5, Groups, v2_Groups) %>% 
+  mutate(freezing=min(freezing)) %>% mutate(v2_freezing=min(v2_freezing))  %>% distinct() %>% ungroup()
+
 first_to_second_visit %>% group_by(freezing) %>% count()
 
-first_to_second_visit <- first_to_second_visit %>% mutate(freezing=ifelse(freezing==1,0,freezing))
+#   freezing     n
+# 1 0         2389
+  
 
-unique(first_to_second_visit$v2_freezing)
+first_to_second_visit <- first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==">=2", "2", v2_freezing)) %>% 
+  mutate(v2_freezing=as.numeric(v2_freezing)) %>% mutate(v2_freezing=ifelse(is.na(v2_freezing), 0, v2_freezing))
+
+first_to_second_visit %>% group_by(v2_freezing) %>% count()
+
+#   v2_freezing     n
+# 1           0  2246
+# 2           1   119
+# 3           2    21
+# 4           3     3
 
 
-first_to_second_visit <- first_to_second_visit %>% 
-  mutate(v2_freezing=ifelse(v2_freezing==">=2","2",v2_freezing)) %>%
-  mutate(v2_freezing=as.numeric(v2_freezing))
+test <- first_to_second_visit %>% select(freezing, v2_freezing) %>%
+  gather(eval, score, freezing:v2_freezing) %>% mutate(score=as.factor(score)) %>%
+   mutate(eval=as.factor(eval))
 
+unique(test$score)
+
+model <- ordinal::clm(score ~ eval , data = test)
+
+summary(model)
+# (1) Hessian is numerically singular: parameters are not uniquely determined 
+# In addition: Absolute convergence criterion was met, but relative criterion was not met 
+
+
+first_to_second_visit %>% ungroup() %>%
+  group_by(Groups) %>% summarise(mean=mean(freezing, na.rm=T)) 
+
+#   Groups    mean
+# 1 1- LD        0
+# 2 2- Other     0
 
 first_to_second_visit %>% ungroup() %>%
   group_by(Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T)) 
 
+#   Groups     mean
+# 1 1- LD    0.0966
+# 2 2- Other 0.0527
+
 
 first_to_second_visit %>% group_by(Groups, freezing, v2_freezing) %>% count()
 
+#   Groups   freezing v2_freezing     n
+# 1 1- LD           0           0   927
+# 2 1- LD           0           1    59
+# 3 1- LD           0           2    16
+# 4 1- LD           0           3     2
+# 5 2- Other        0           0  1319
+# 6 2- Other        0           1    60
+# 7 2- Other        0           2     5
+# 8 2- Other        0           3     1
 
 first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==0,0,1)) %>%
   group_by(Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T))
 
+#   Groups     mean
+# 1 1- LD    0.0767
+# 2 2- Other 0.0477
 
+
+first_to_second_visit$freezing <- as.numeric(first_to_second_visit$freezing)
+
+first_to_second_visit$freezing <- first_to_second_visit$freezing - 1
+
+mean(first_to_second_visit$freezing)
+
+
+first_to_second_visit$v2_freezing <- as.numeric(first_to_second_visit$v2_freezing)
+
+first_to_second_visit$v2_freezing <- first_to_second_visit$v2_freezing - 1
+
+mean(first_to_second_visit$v2_freezing)
+
+first_to_second_visit <- first_to_second_visit %>%
+  mutate(freezing_diff = v2_freezing - freezing)
+
+
+wilcox.test(freezing_diff ~ Groups, data = first_to_second_visit)
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  freezing_diff by Groups
+# W = 715821, p-value = 0.00266
+# alternative hypothesis: true location shift is not equal to 0
+
+
+
+
+# ---------
+# Create the patient funel for early PD drug groups NO LEVODOPA AT BASELINE --------
+
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+first_to_second_visit %>% group_by(Groups) %>% count() %>% mutate(n=n/1409)
+
+
+first_to_second_visit %>% group_by(v2_Groups) %>% count() %>% mutate(n=n/1409)
+
+#   v2_Groups     n
+#   <chr>     <dbl>
+# 1 1- LD     0.329
+# 2 2- Other  0.671
+
+first_to_second_visit %>% group_by(Groups, v2_Groups) %>% count()
+
+#  Groups   v2_Groups     n
+#   <chr>    <chr>     <int>
+# 1 2- Other 1- LD       463
+# 2 2- Other 2- Other    946
+
+mcnemar_table <- table(first_to_second_visit$Groups == "1- LD", first_to_second_visit$v2_Groups == "1- LD")
+
+print(mcnemar_table)
+
+mcnemar.test(mcnemar_table)
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing)) %>% 
+  left_join(df_complet %>% select(anonyme_id...1, act_datedeb...5, freezing) %>% rename("v2_freezing"="freezing"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+unique(first_to_second_visit$freezing)
+unique(first_to_second_visit$v2_freezing)
+
+first_to_second_visit <- first_to_second_visit %>% group_by(anonyme_id...1, act_datedeb...5, v2_act_datedeb...5, Groups, v2_Groups) %>% 
+  mutate(freezing=min(freezing)) %>% mutate(v2_freezing=min(v2_freezing))  %>% distinct() %>% ungroup()
+
+first_to_second_visit %>% group_by(freezing) %>% count()
+
+#   freezing     n
+# 1 0         1409
+  
+
+first_to_second_visit <- first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==">=2", "2", v2_freezing)) %>% 
+  mutate(v2_freezing=as.numeric(v2_freezing)) %>% mutate(v2_freezing=ifelse(is.na(v2_freezing), 0, v2_freezing))
+
+first_to_second_visit %>% group_by(v2_freezing) %>% count()
+
+#   v2_freezing     n
+# 1           0  1338
+# 2           1    65
+# 3           2     5
+# 4           3     1
+
+
+
+test <- first_to_second_visit %>% select(freezing, v2_freezing) %>%
+  gather(eval, score, freezing:v2_freezing) %>% mutate(score=as.factor(score)) %>%
+   mutate(eval=as.factor(eval))
+
+unique(test$score)
+
+model <- ordinal::clm(score ~ eval , data = test)
+
+summary(model)
+
+# (1) Hessian is numerically singular: parameters are not uniquely determined 
+# In addition: Absolute convergence criterion was met, but relative criterion was not met 
+
+
+first_to_second_visit %>% ungroup() %>%
+  group_by(Groups) %>% summarise(mean=mean(freezing, na.rm=T)) 
+
+#   Groups    mean
+# 1 1- LD        0
+# 2 2- Other     0
+
+first_to_second_visit %>% ungroup() %>%
+  group_by(Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T)) 
+
+#   Groups     mean
+# 1 1- LD    0.0966
+# 2 2- Other 0.0527
+
+first_to_second_visit %>% ungroup() %>%
+  group_by(v2_Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T)) 
+
+
+
+first_to_second_visit %>% group_by(v2_Groups, freezing, v2_freezing) %>% count()
+
+#  v2_Groups freezing v2_freezing     n
+#   <chr>     <chr>          <dbl> <int>
+# 1 1- LD     0                  0   437
+# 2 1- LD     0                  1    25
+# 3 1- LD     0                  3     1
+# 4 2- Other  0                  0   901
+# 5 2- Other  0                  1    40
+# 6 2- Other  0                  2     5
+
+first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==0,0,1)) %>%
+  group_by(v2_Groups) %>% summarise(mean=mean(v2_freezing, na.rm=T))
+
+#  1- LD     0.0562
+# 2 2- Other  0.0476
+
+first_to_second_visit %>% mutate(v2_freezing=ifelse(v2_freezing==0,0,1)) %>%
+  group_by(v2_Groups) %>% summarise(sd=sd(v2_freezing, na.rm=T))
+
+# 1 1- LD     0.226
+# 2 2- Other  0.201
+
+first_to_second_visit$freezing <- as.numeric(first_to_second_visit$freezing)
+
+first_to_second_visit$freezing <- first_to_second_visit$freezing - 1
+
+mean(first_to_second_visit$freezing)
+
+
+first_to_second_visit$v2_freezing <- as.numeric(first_to_second_visit$v2_freezing)
+
+first_to_second_visit$v2_freezing <- first_to_second_visit$v2_freezing - 1
+
+mean(first_to_second_visit$v2_freezing)
+
+first_to_second_visit <- first_to_second_visit %>%
+  mutate(freezing_diff = v2_freezing - freezing)
+
+
+wilcox.test(freezing_diff ~ v2_Groups, data = first_to_second_visit)
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  freezing_diff by v2_Groups
+# W = 220840, p-value = 0.4985
+# alternative hypothesis: true location shift is not equal to 0
+
+first_to_second_visit %>% group_by(v2_Groups, freezing_diff) %>% count() %>%
+  ungroup() %>% group_by(v2_Groups) %>% mutate(tot=sum(n)) %>% mutate(tot=n/tot)
+
+#   v2_Groups freezing_diff     n     tot
+#   <chr>             <dbl> <int>   <dbl>
+# 1 1- LD                 0   437 0.944  
+# 2 1- LD                 1    25 0.0540 
+# 3 1- LD                 3     1 0.00216
+# 4 2- Other              0   901 0.952  
+# 5 2- Other              1    40 0.0423 
+# 6 2- Other              2     5 0.00529
+ 
 
 # ---------
