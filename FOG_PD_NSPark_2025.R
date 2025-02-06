@@ -16,9 +16,6 @@ names(data_i)
 
 data_i <- data_i %>% select(anonyme_id,pat_ddn_a ,pat_sexe,diag_date_a)
 
-
-
-
 data_v <- read_excel(path = "Consultation_20250106.xlsx")
 
 data_v <- data_v %>% inner_join(data_i %>% select(anonyme_id))
