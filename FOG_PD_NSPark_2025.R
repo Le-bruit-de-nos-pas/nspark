@@ -1845,3 +1845,480 @@ survminer::ggsurvplot(surv_fit, data = data,
 # --------
 
 
+
+# Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not MDS-UPDRS IIII ------
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+Echellesmdsupdrs_20250106 %>% group_by(anonyme_id) %>% count() %>%
+  ungroup() %>% summarise(mean=mean(n))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
+
+
+
+
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>% select(-c(freezing, disease_duration))
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, redcap_repeat_instance, freezing )
+
+data_v <- data_v %>% inner_join(Echellesmdsupdrs_20250106) 
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+unique(data_v$mds3_tot_on)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb, redcap_repeat_instance)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+
+first_to_second_visit <- first_to_second_visit %>% mutate(Groups=ifelse(Groups=="1- LD", 1, 0))
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+data <- first_to_second_visit
+
+data$elapsed_scaled <- (data$elapsed - mean(data$elapsed)) / 365
+
+
+data <- data %>% select(-elapsed) %>% distinct()
+
+data <- data %>% group_by(anonyme_id...1, elapsed_scaled) %>%
+  filter(Groups==max(Groups)) %>% 
+  filter(freezing ==max(freezing )) %>%
+  filter(mds3_tot_on  ==max(mds3_tot_on  )) %>% distinct()
+
+data <- data %>% ungroup()
+
+summary(data)
+
+sum(is.na(data))
+
+library(nlme)
+
+lme_model <- nlme::lme(fixed = mds3_tot_on  ~ elapsed_scaled + Groups,
+                 random = ~ 1 | anonyme_id...1,
+                 data = data,
+                 method = "REML")
+
+summary(lme_model)
+
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC     BIC    logLik
+#   13032.44 13081.7 -6509.221
+# 
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC      BIC    logLik
+#   6454.216 6478.093 -3222.108
+# 
+# Random effects:
+#  Formula: ~1 | anonyme_id...1
+#         (Intercept) Residual
+# StdDev:    8.400174 6.446673
+# 
+# Fixed effects:  mds3_tot_on ~ elapsed_scaled + Groups 
+#                    Value Std.Error  DF  t-value p-value
+# (Intercept)    19.739770 0.5492394 508 35.94019  0.0000
+# elapsed_scaled  0.247910 0.1824291 368  1.35894  0.1750
+# Groups          0.825667 0.9119464 508  0.90539  0.3657
+#  Correlation: 
+#                (Intr) elpsd_
+# elapsed_scaled -0.061       
+# Groups         -0.605  0.085
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.28798412 -0.53697896 -0.07288492  0.46514121  3.20709280 
+# 
+# Number of Observations: 879
+# Number of Groups: 510 
+
+
+
+data <- first_to_second_visit
+
+data <- data %>% group_by(anonyme_id...1, elapsed) %>% 
+  filter(Groups==max(Groups)) %>%
+  filter(freezing ==max(freezing )) %>%
+  filter(mds3_tot_on ==max(mds3_tot_on )) %>% ungroup()
+
+
+
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = anonyme_id...1, time = elapsed, mds3_tot_on = mds3_tot_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+data <- data %>% mutate(mds3_tot_on=mds3_tot_on/10)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + mds3_tot_on + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+# Call:
+# coxph(formula = Surv(Start, Stop, freezing) ~ Groups + mds3_tot_on, 
+#     data = data, cluster = ID)
+# 
+#   n= 632, number of events= 67 
+# 
+#                 coef exp(coef) se(coef) robust se     z Pr(>|z|)  
+# Groups      0.301347  1.351678 0.266627  0.318122 0.947    0.344  
+# mds3_tot_on 0.028161  1.028561 0.008571  0.011206 2.513    0.012 *
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#             exp(coef) exp(-coef) lower .95 upper .95
+# Groups          1.352     0.7398    0.7246     2.522
+# mds3_tot_on     1.029     0.9722    1.0062     1.051
+# 
+# Concordance= 0.694  (se = 0.043 )
+# Likelihood ratio test= 12.04  on 2 df,   p=0.002
+# Wald test            = 9.05  on 2 df,   p=0.01
+# Score (logrank) test = 13.81  on 2 df,   p=0.001,   Robust = 8.52  p=0.01
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+# Fit survival curves based on the Cox model
+surv_fit <- survival::survfit(cox_model_td, newdata = data.frame(Groups = c(0,1), hy_stage = mean(data$hy_stage)))
+
+
+# -------
+# Linear Mixed-model and time-varying Cox regression - Levodopa-experienced vs naive  MDS-UPDRS IIII ------
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+Echellesmdsupdrs_20250106 %>% group_by(anonyme_id) %>% count() %>%
+  ungroup() %>% summarise(mean=mean(n))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
+
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+
+B_groups <- df_complet %>% select(anonyme_id...1, B) %>% distinct() %>% group_by(anonyme_id...1) %>%
+  summarise(B=max(B))
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(B_groups) %>% ungroup()
+
+unique(first_to_second_visit$B)
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+
+
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing, redcap_repeat_instance )
+
+data_v <- data_v %>% inner_join(Echellesmdsupdrs_20250106) 
+
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+
+first_to_second_visit <- first_to_second_visit %>% mutate(Groups=ifelse(B==1, 1, 0))
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+data <- first_to_second_visit
+
+data$elapsed_scaled <- (data$elapsed - mean(data$elapsed)) / 365
+
+data <- data %>% select(-elapsed) %>% distinct()
+
+data <- data %>% group_by(anonyme_id...1, elapsed_scaled) %>%
+  filter(Groups==max(Groups)) %>% 
+  filter(freezing ==max(freezing )) %>%
+  filter(mds3_tot_on ==max(mds3_tot_on )) %>% distinct()
+
+
+library(nlme)
+
+lme_model <- nlme::lme(fixed = mds3_tot_on ~ elapsed_scaled + Groups,
+                 random = ~ 1 | anonyme_id...1,
+                 data = data,
+                 method = "REML")
+
+summary(lme_model)
+ 
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC      BIC    logLik
+#   4219.737 4241.509 -2104.868
+# 
+# Random effects:
+#  Formula: ~1 | anonyme_id...1
+#         (Intercept) Residual
+# StdDev:    8.041853 6.396301
+# 
+# Fixed effects:  mds3_tot_on ~ elapsed_scaled + Groups 
+#                    Value Std.Error  DF   t-value p-value
+# (Intercept)    19.449546 0.9069333 336 21.445399  0.0000
+# elapsed_scaled  0.235714 0.2173995 239  1.084243  0.2793
+# Groups          0.582621 1.1308903 336  0.515188  0.6068
+#  Correlation: 
+#                (Intr) elpsd_
+# elapsed_scaled  0.194       
+# Groups         -0.819 -0.244
+# 
+# Standardized Within-Group Residuals:
+#         Min          Q1         Med          Q3         Max 
+# -2.30343568 -0.53717460 -0.09293278  0.49372614  2.34664523 
+# 
+# Number of Observations: 578
+# Number of Groups: 338 
+
+
+
+
+data <- first_to_second_visit
+
+data <- data %>% group_by(anonyme_id...1, elapsed) %>% 
+  filter(Groups==max(Groups)) %>%
+  filter(freezing ==max(freezing )) %>%
+  filter(mds3_tot_on ==max(mds3_tot_on )) %>% ungroup()
+
+
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = anonyme_id...1, time = elapsed, mds3_tot_on = mds3_tot_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+data <- data %>% mutate(mds3_tot_on=mds3_tot_on/10)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + mds3_tot_on + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+
+# Call:
+# coxph(formula = Surv(Start, Stop, freezing) ~ Groups + mds3_tot_on, 
+#     data = data, cluster = ID)
+# 
+#   n= 437, number of events= 47 
+# 
+#                coef exp(coef) se(coef) robust se     z Pr(>|z|)  
+# Groups      0.01717   1.01732  0.45111   0.64090 0.027    0.979  
+# mds3_tot_on 0.33586   1.39914  0.11584   0.13805 2.433    0.015 *
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#             exp(coef) exp(-coef) lower .95 upper .95
+# Groups          1.017     0.9830    0.2897     3.573
+# mds3_tot_on     1.399     0.7147    1.0675     1.834
+# 
+# Concordance= 0.735  (se = 0.045 )
+# Likelihood ratio test= 7.78  on 2 df,   p=0.02
+# Wald test            = 5.97  on 2 df,   p=0.05
+# Score (logrank) test = 8.56  on 2 df,   p=0.01,   Robust = 4.64  p=0.1
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+
+# --------
+
+
