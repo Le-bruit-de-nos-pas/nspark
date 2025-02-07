@@ -1360,7 +1360,7 @@ coxph(Surv(elapsed, freezing) ~ B, data = data)
 
 
 # ---------
-# # Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not ------
+# # Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not H&Y ------
  --------
 
 df_complet <- fread( "df_complet.txt")
@@ -1582,7 +1582,7 @@ survminer::ggsurvplot(surv_fit, data = data,
 
 
 # -------
-# Linear Mixed-model and time-varying Cox regression - Levodopa-experienced vs naive ------
+# Linear Mixed-model and time-varying Cox regression - Levodopa-experienced vs naive H&Y ------
 
 df_complet <- fread( "df_complet.txt")
 
