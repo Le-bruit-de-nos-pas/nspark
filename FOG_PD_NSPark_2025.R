@@ -1360,8 +1360,7 @@ coxph(Surv(elapsed, freezing) ~ B, data = data)
 
 
 # ---------
-# # Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not H&Y ------
- --------
+# Linear Mixed-model and time-varying Cox regression - Starting ON Levodopa vs not H&Y ------
 
 df_complet <- fread( "df_complet.txt")
 
