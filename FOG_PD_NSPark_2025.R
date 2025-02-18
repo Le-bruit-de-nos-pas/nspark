@@ -3507,10 +3507,10 @@ data_v %>% ungroup() %>%
   mutate(tot=sum(n)) %>% mutate(perc=n/tot)
 
 
+
 Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
 
 Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
-
 
 Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
 
