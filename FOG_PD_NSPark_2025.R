@@ -2214,6 +2214,8 @@ data <- data %>% group_by(anonyme_id...1, elapsed_scaled) %>%
   filter(mds3_tot_on ==max(mds3_tot_on )) %>% distinct()
 
 
+
+
 library(nlme)
 
 lme_model <- nlme::lme(fixed = mds3_tot_on ~ elapsed_scaled + Groups,
@@ -3303,5 +3305,6 @@ survminer::ggforest(cox_model_td, data = data)
 
 
 # --------
+
 
 
