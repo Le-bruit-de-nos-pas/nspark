@@ -3308,3 +3308,223 @@ survminer::ggforest(cox_model_td, data = data)
 
 
 
+# Summary table ---------------
+
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+
+B_groups <- df_complet %>% select(anonyme_id...1, B) %>% distinct() %>% group_by(anonyme_id...1) %>%
+  summarise(B=max(B))
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(B_groups) %>% ungroup()
+
+unique(first_to_second_visit$B)
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+filtered_data <- first_to_second_visit %>%
+  group_by(anonyme_id...1) %>%
+  mutate(first_freezing = which(freezing == 1)[1]) %>%
+  filter(row_number() <= first_freezing | is.na(first_freezing)) %>%
+  ungroup()
+
+# View result
+filtered_data
+
+filtered_data <- filtered_data %>% select(-first_freezing)
+
+length(unique(filtered_data$anonyme_id...1)) # 1409
+
+pats_to_summary <- filtered_data %>% select(anonyme_id...1) %>% rename("anonyme_id"="anonyme_id...1")
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+data_v <- pats_to_summary %>% inner_join(data_v)
+
+data_v <- data_v %>% distinct() 
+
+data_v <- data_v %>% group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance))
+
+Inclusion_20241028 <- read_excel(path = "Inclusion_20250106.xlsx")
+
+Inclusion_20241028 <- Inclusion_20241028 %>% inner_join(data_v %>% select(anonyme_id ) %>% distinct())
+
+names(Inclusion_20241028)
+
+Inclusion_20241028 %>% group_by(pat_sexe) %>% count()
+
+Inclusion_20241028 %>% select(anonyme_id, pat_ddn_a, diag_date_a) %>%
+  inner_join(data_v) %>% 
+  mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=year-diag_date_a) %>% select(-c(diag_date_a, year)) %>%
+  select(anonyme_id, age, disease_dur) %>% drop_na() %>%
+  summarise(mean=mean(age), 
+            se=sd(age),
+            median=median(age),
+            q25=quantile(age, 0.25),
+            q75=quantile(age, 0.75))
+
+
+Inclusion_20241028 %>% select(anonyme_id, pat_ddn_a, diag_date_a) %>%
+  inner_join(data_v) %>% 
+  mutate(year=str_sub(as.character(act_datedeb), 1L, 4L)) %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pat_ddn_a=as.numeric(pat_ddn_a)) %>%
+  mutate(diag_date_a=as.numeric(diag_date_a)) %>%
+  mutate(age=year-pat_ddn_a) %>% select(-c(pat_ddn_a)) %>%
+  mutate(disease_dur=12*(year-diag_date_a)) %>% select(-c(diag_date_a, year)) %>%
+  select(anonyme_id, age, disease_dur) %>% drop_na() %>%
+  summarise(mean=mean(disease_dur), 
+            se=sd(disease_dur),
+            median=median(disease_dur),
+            q25=quantile(disease_dur, 0.25),
+            q75=quantile(disease_dur, 0.75))
+
+
+data_v %>% select(anonyme_id, hoehn_yahr_on) %>% 
+  mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  group_by(hoehn_yahr_on) %>% count() %>% drop_na() %>%
+  filter(hoehn_yahr_on<=5&hoehn_yahr_on>0) %>% ungroup() %>%
+  mutate(tot=sum(n)) %>% mutate(perc=n/tot)
+
+
+data_v %>% ungroup() %>%
+  filter(freezing=="0") %>% 
+  mutate(fluct_motrice=ifelse(fluct_motrice==">=2",2,fluct_motrice)) %>%
+  select(anonyme_id, fluct_motrice) %>% 
+  mutate(fluct_motrice=as.numeric(fluct_motrice)) %>% drop_na() %>%
+  group_by(fluct_motrice) %>% count() %>% drop_na() %>%
+  ungroup() %>%
+  mutate(tot=sum(n)) %>% mutate(perc=n/tot)
+
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(redcap_repeat_instance==1) %>% select(-redcap_repeat_instance)
+
+Echellesmdsupdrs_20250106 <- data_v %>%inner_join(Echellesmdsupdrs_20250106) 
+
+Echellesmdsupdrs_20250106 %>% ungroup() %>%
+    summarise(mean=mean(mds3_tot_on), 
+            se=sd(mds3_tot_on),
+            median=median(mds3_tot_on),
+            q25=quantile(mds3_tot_on, 0.25),
+            q75=quantile(mds3_tot_on, 0.75))
+
+
+# ----------------
+
