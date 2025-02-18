@@ -2949,12 +2949,10 @@ quantile(PPMI_Curated_Data_Cut_Public_20241211$age, 0.75)
 PPMI_Curated_Data_Cut_Public_20241211 %>% ungroup() %>%
   group_by(SEX) %>% count()
 
-
 mean(PPMI_Curated_Data_Cut_Public_20241211$duration, na.rm=T) ; sd(PPMI_Curated_Data_Cut_Public_20241211$duration, na.rm=T)
 median(PPMI_Curated_Data_Cut_Public_20241211$duration, na.rm=T) 
 quantile(PPMI_Curated_Data_Cut_Public_20241211$duration, 0.25)
 quantile(PPMI_Curated_Data_Cut_Public_20241211$duration, 0.75)
-
 
 PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(hy_on) %>% count()
 
