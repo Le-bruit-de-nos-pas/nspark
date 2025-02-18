@@ -433,6 +433,8 @@ PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %
 
 length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
 
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
 PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(
   PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>%
     select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1)
