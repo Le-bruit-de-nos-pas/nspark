@@ -2990,4 +2990,13 @@ mean(Features_of_Parkinsonism_12Feb2025$FEATBRADY)
 mean(Features_of_Parkinsonism_12Feb2025$FEATPOSINS)
 mean(Features_of_Parkinsonism_12Feb2025$FEATRIGID)
 mean(Features_of_Parkinsonism_12Feb2025$FEATTREMOR)
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(PATNO, visit_date) %>% mutate(PATNO=as.numeric(PATNO)) %>%
+  distinct() %>% group_by(PATNO) %>% count() %>% inner_join(target_1044 %>% select(PATNO) %>% distinct()) %>%
+  ungroup() %>%
+  summarise(mean=mean(n), sd=sd(n), median=mean(n), q25=quantile(n,0.25), q75=quantile(n, 0.75))
+  
 # -----
