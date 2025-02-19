@@ -3507,6 +3507,17 @@ data_v %>% ungroup() %>%
   mutate(tot=sum(n)) %>% mutate(perc=n/tot)
 
 
+names(data_v)
+
+data_v %>% ungroup() %>%
+  mutate(chute_instab=ifelse(chute_instab==">=2",2,chute_instab)) %>%
+  select(anonyme_id, chute_instab) %>% 
+  mutate(chute_instab=as.numeric(chute_instab)) %>% drop_na() %>%
+  group_by(chute_instab) %>% count() %>% drop_na() %>%
+  ungroup() %>%
+  mutate(tot=sum(n)) %>% mutate(perc=n/tot)
+
+
 
 Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
 
@@ -3526,5 +3537,74 @@ Echellesmdsupdrs_20250106 %>% ungroup() %>%
             q75=quantile(mds3_tot_on, 0.75))
 
 
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+names(Echellesmdsupdrs_20250106)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_rigd_cou_on:mds3_presence_dyskm)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_rigd_cou_on:mds3_tot_on)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% inner_join(data_v %>% select(anonyme_id) %>% distinct())
+
+# 347
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% ungroup() %>% select(-c(anonyme_id, redcap_repeat_instance))
+
+Echellesmdsupdrs_20250106 <- as.numeric(Echellesmdsupdrs_20250106)
+
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>%  mutate_all(as.numeric)
+
+names(Echellesmdsupdrs_20250106)
+
+Echellesmdsupdrs_20250106 %>% ungroup() %>%  
+  select(contains("rigd")) %>%
+  ungroup() %>%
+  mutate(rigd_sum = rowSums(select(., contains("rigd")), na.rm = TRUE)) %>%
+  filter(rigd_sum!=0) %>%
+  count() %>% mutate(n=n/347)
+
+
+Echellesmdsupdrs_20250106 %>% ungroup() %>%  
+  select(contains("trem_")) %>%
+  ungroup() %>%
+  mutate(rigd_sum = rowSums(select(., contains("trem_")), na.rm = TRUE)) %>%
+  filter(rigd_sum!=0) %>%
+  count() %>% mutate(n=n/347)
+
+
+Echellesmdsupdrs_20250106 %>% ungroup() %>%  
+  select(mds3_tap_doigtd_on, mds3_tap_doigtg_on, mds3_mvm_maind_on, mds3_mvm_maing_on, mds3_pron_maind_on, mds3_pron_maing_on,
+         mds3_tap_oreild_on, mds3_tap_oreilg_on, mds3_agilite_jambed_on, mds3_agilite_jambeg_on) %>%
+  ungroup() %>%
+  mutate(rigd_sum = rowSums(select(., contains("mds")), na.rm = TRUE)) %>%
+  filter(rigd_sum!=0) %>%
+  count() %>% mutate(n=n/347)
+ 
+ 
+Echellesmdsupdrs_20250106 %>%
+  select(mds3_blocage_on, mds3_stab_posturale_on, mds3_posture_on) %>%
+    ungroup() %>%
+  mutate(rigd_sum = rowSums(select(., contains("mds")), na.rm = TRUE)) %>%
+  filter(rigd_sum!=0) %>%
+  count() %>% mutate(n=n/347)
+ 
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+
+data_v %>% group_by(anonyme_id) %>% count() %>%
+  inner_join(pats_to_summary %>% select(anonyme_id) %>% distinct()) %>%
+  ungroup() %>%
+  summarise(mean=mean(n), sd=sd(n), median=median(n), q25=quantile(n,0.25), q75=quantile(n,0.75))
+
+
+
 # ----------------
+
 
