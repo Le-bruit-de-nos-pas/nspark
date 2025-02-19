@@ -2965,4 +2965,26 @@ quantile(PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on, 0.75, na.rm=T)
 
 
 
+target_1044
+
+length(unique(target_1044$PATNO))
+
+Features_of_Parkinsonism_12Feb2025 <- fread("Medical/Features_of_Parkinsonism_12Feb2025.csv")
+Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>% inner_join(target_1044 %>% select(PATNO) %>% distinct())
+
+
+Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>%
+  mutate(INFODT =as.Date(paste("01/", as.character(INFODT )), "%d/%m/%Y")) 
+
+Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>% group_by(PATNO) %>% filter(INFODT==min(INFODT))
+
+
+
+mean(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T) ; sd(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T)
+median(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T) 
+quantile(Features_of_Parkinsonism_12Feb2025$FEATBRADY , 0.25, na.rm=T)
+quantile(Features_of_Parkinsonism_12Feb2025$FEATBRADY , 0.75, na.rm=T)
+
+
+
 # -----
