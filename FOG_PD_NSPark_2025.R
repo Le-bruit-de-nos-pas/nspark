@@ -300,6 +300,8 @@ fwrite(df_complet, "df_complet.txt")
 
 df_complet <- fread( "df_complet.txt")
 
+
+
 df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
 
 
@@ -3608,3 +3610,19 @@ data_v %>% group_by(anonyme_id) %>% count() %>%
 # ----------------
 
 
+
+# Centers ------------
+
+df_complet <- fread( "df_complet.txt")
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+
+length(unique(data_v$redcap_data_access_group))
+
+data.frame(data_v %>% select(redcap_data_access_group, anonyme_id) %>% distinct() %>%
+  inner_join(df_complet %>% rename("anonyme_id"="anonyme_id...1") %>% select(anonyme_id) %>% distinct()) %>%
+  group_by(redcap_data_access_group) %>% count() %>% arrange(-n))
+
+
+# ---------
