@@ -2979,12 +2979,15 @@ Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>%
 Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>% group_by(PATNO) %>% filter(INFODT==min(INFODT))
 
 
+Features_of_Parkinsonism_12Feb2025 <- Features_of_Parkinsonism_12Feb2025 %>%
+  mutate(FEATBRADY=ifelse(is.na(FEATBRADY),0,FEATBRADY)) %>% mutate(FEATBRADY=ifelse(FEATBRADY==0,0,1)) %>%
+  mutate(FEATPOSINS =ifelse(is.na(FEATPOSINS ),0,FEATPOSINS )) %>% mutate(FEATPOSINS =ifelse(FEATPOSINS ==0,0,1)) %>%
+  mutate(FEATRIGID=ifelse(is.na(FEATRIGID),0,FEATRIGID)) %>% mutate(FEATRIGID=ifelse(FEATRIGID==0,0,1)) %>%
+  mutate(FEATTREMOR =ifelse(is.na(FEATTREMOR ),0,FEATTREMOR )) %>% mutate(FEATTREMOR =ifelse(FEATTREMOR ==0,0,1)) 
 
-mean(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T) ; sd(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T)
-median(Features_of_Parkinsonism_12Feb2025$FEATBRADY , na.rm=T) 
-quantile(Features_of_Parkinsonism_12Feb2025$FEATBRADY , 0.25, na.rm=T)
-quantile(Features_of_Parkinsonism_12Feb2025$FEATBRADY , 0.75, na.rm=T)
 
-
-
+mean(Features_of_Parkinsonism_12Feb2025$FEATBRADY)
+mean(Features_of_Parkinsonism_12Feb2025$FEATPOSINS)
+mean(Features_of_Parkinsonism_12Feb2025$FEATRIGID)
+mean(Features_of_Parkinsonism_12Feb2025$FEATTREMOR)
 # -----
