@@ -666,7 +666,9 @@ Before_vs_after <- first_apo %>% filter(before_after=="before") %>% group_by(ano
 Before_vs_after %>% group_by(tci_before) %>% count() %>% mutate(n=n/149)
 Before_vs_after %>% group_by(tci_after) %>% count()  %>% mutate(n=n/149)
 
-Before_vs_after %>% group_by(tci_before, tci_after) %>% count()
+Before_vs_after %>% mutate(tci_before=ifelse(tci_before==0,0,1)) %>%
+  mutate(tci_after=ifelse(tci_after==0,0,1)) %>%
+  group_by(tci_before, tci_after) %>% count()
 
 
 
@@ -7760,6 +7762,29 @@ match_results %>% select(anonyme_id) %>%
 
 
 
+test_ignore <- match_results %>% select(anonyme_id) %>%
+  distinct() %>%
+  left_join(data_all) %>%
+  group_by(anonyme_id) %>% count() %>%
+  filter(n>1) %>% select(-n) %>%
+  left_join(data_all)  %>% ungroup() %>%
+  select(redcap_repeat_instance , tci) %>%
+  mutate(Group="Control (no pump)") %>%
+  bind_rows(
+    match_results %>% select(matched_to) %>% distinct() %>%
+      left_join(Consultation_20241028, by=c("matched_to"="anonyme_id")) %>%
+      select(redcap_repeat_instance , tci) %>%
+      mutate(tci=ifelse(tci==">=2", "2", tci)) %>%
+      mutate(tci=as.numeric(tci)) %>% drop_na() %>%
+      mutate(Group="Apomorphine Pump")
+    )
+    
+
+
+model <- lm(tci ~ redcap_repeat_instance * Group, data = test_ignore)
+summary(model)
+
+
 
 match_results %>% select(anonyme_id) %>%
   distinct() %>%
@@ -8878,7 +8903,7 @@ combined_data_imputed$act_datedeb <- as.numeric(as.Date(combined_data_imputed$ac
 
 combined_data_imputed <- combined_data_imputed %>% filter(act_datedeb>0)
 
-ps_model <- matchit(
+ps_model <- MatchIt::matchit(
   group ~ pat_sexe + age + disease_dur + hoehn_yahr_on + fluct_motrice + dyskinesie + act_datedeb,
   data = combined_data_imputed,
   method = "nearest",   # Nearest neighbor matching
@@ -8889,7 +8914,20 @@ ps_model <- matchit(
 
 
 # Extract matched dataset
-matched_data <- match.data(ps_model)
+matched_data <- MatchIt::match.data(ps_model)
+
+length(unique(matched_data$subclass))
+length(unique(matched_data$anonyme_id))
+
+
+
+unique(Consultation_20241028$date_impl)
+
+dbs_pats <- Consultation_20241028 %>% filter(!is.na(date_impl)) %>% select(anonyme_id) %>% distinct()
+
+
+matched_data %>% select(anonyme_id) %>% distinct() %>%
+  inner_join(dbs_pats)
 
 
 # Check balance after matching
@@ -8920,6 +8958,57 @@ data_summary <- matched_data %>% group_by(anonyme_id) %>%
 data_summary <- data_summary %>% mutate(group=ifelse(group==0, "A) Never Apo Pump [CSAI]", "B) Apo Pump Experienced [CSAI]"))
 
 data_summary <- data_summary %>% mutate(act_datedeb=ifelse(act_datedeb==1, "1-BEFORE Apo Pump [CSAI]", "2-AFTER Apo Pump [CSAI]"))
+
+data_summary <- data_summary %>% 
+  mutate(act_datedeb=ifelse(act_datedeb=="1-BEFORE Apo Pump [CSAI]" & group=="A) Never Apo Pump [CSAI]", "1-BEFORE (Matched)",
+                            ifelse(act_datedeb=="2-AFTER Apo Pump [CSAI]" & group=="A) Never Apo Pump [CSAI]","2-AFTER (Matched)", act_datedeb)))
+
+
+# Ensure act_datedeb is a factor with a specific order
+data_summary <- data_summary %>%
+  mutate(act_datedeb = factor(act_datedeb, 
+                              levels = c("1-BEFORE (Matched)", "2-AFTER (Matched)", 
+                                         "1-BEFORE Apo Pump [CSAI]", "2-AFTER Apo Pump [CSAI]")))
+
+# Create the bar plot with correct ordering
+ggplot(data_summary, aes(x = act_datedeb, y = mean_tci, fill = group)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.6, alpha=0.5) +  # Create bar plot
+  geom_errorbar(aes(ymin = mean_tci - se_tci, ymax = mean_tci + se_tci), 
+                width = 0.2, position = position_dodge(0.6)) +  # Add error bars
+  theme_minimal() +  # Use a clean theme
+  labs(
+    x = "\n Visit - Closest Before|After CSAI \n [Or date-matched for controls]",
+    y = "Mean TCI [SEM] \n",
+    fill = "Group"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate x-axis labels for readability +
+    scale_color_manual(values=c("#A955A7", "#558EA9")) +
+  scale_fill_manual(values=c("#A955A7", "#558EA9")) 
+
+
+test <- matched_data %>% group_by(anonyme_id) %>% 
+  mutate(act_datedeb=ifelse(act_datedeb==min(act_datedeb),1,2)) %>%
+  ungroup() %>% select(anonyme_id, group, act_datedeb, tci) %>% distinct() %>%
+  arrange(anonyme_id)
+
+test %>% filter(group==1) 
+test %>% filter(group==0) 
+
+# Split data by group and act_datedeb
+group_0_before <- test %>% filter(group == 0, act_datedeb == 1)
+group_0_after  <- test %>% filter(group == 0, act_datedeb == 2)
+
+group_1_before <- test %>% filter(group == 1, act_datedeb == 1)
+group_1_after  <- test %>% filter(group == 1, act_datedeb == 2)
+
+# Perform Wilcoxon rank-sum test (unpaired version)
+wilcox_test_group_0 <- wilcox.test(group_0_before$tci, group_0_after$tci, paired =T)
+
+wilcox_test_group_1 <- wilcox.test(group_1_before$tci, group_1_after$tci, paired =T)
+
+3# Print results
+wilcox_test_group_0
+wilcox_test_group_1
 
 
 
