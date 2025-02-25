@@ -671,6 +671,8 @@ Before_vs_after %>% mutate(tci_before=ifelse(tci_before==0,0,1)) %>%
   group_by(tci_before, tci_after) %>% count()
 
 
+Before_vs_after %>%  group_by(tci_before, tci_after) %>% count()
+
 
 mean(Before_vs_after$tci_before) 
 sd(Before_vs_after$tci_before) 
@@ -764,6 +766,9 @@ Before_vs_after %>%
   mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
   group_by(tci_before, tci_after) %>% count()
 
+Before_vs_after %>% 
+  group_by(tci_before, tci_after) %>% count()
+
 data <- matrix(c(10, 18, 8, 88), nrow = 2, byrow = TRUE,
                dimnames = list("Before" = c("Positive", "Negative"),
                                "After" = c("Positive", "Negative")))
@@ -830,6 +835,9 @@ Before_vs_after %>%
   mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
   group_by(tci_before, tci_after) %>% count()
 
+
+Before_vs_after %>% 
+  group_by(tci_before, tci_after) %>% count()
 
 data <- matrix(c(7, 8, 1, 43), nrow = 2, byrow = TRUE,
                dimnames = list("Before" = c("Positive", "Negative"),
@@ -899,6 +907,9 @@ wilcox.test(Before_vs_after$tci_before, Before_vs_after$tci_after, paired = TRUE
 Before_vs_after %>% 
   mutate(tci_before=ifelse(tci_before>=1,1,0)) %>%
   mutate(tci_after=ifelse(tci_after>=1,1,0)) %>%
+  group_by(tci_before, tci_after) %>% count()
+
+Before_vs_after %>% 
   group_by(tci_before, tci_after) %>% count()
 
 
