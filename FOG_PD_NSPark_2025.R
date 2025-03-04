@@ -4075,6 +4075,19 @@ data_v %>% group_by(anonyme_id) %>% count() %>%
 
 
 
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+names(Echellesmdsupdrs_20250106)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% inner_join(pats_to_summary %>% distinct())
+
+
+
+names(Echellesmdsupdrs_20250106)
+
+
+fwrite(Echellesmdsupdrs_20250106, "Pats_1409_Echellesmdsupdrs_20250106.csv")v
+
 # ----------------
 
 
