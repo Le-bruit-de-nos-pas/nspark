@@ -3736,8 +3736,8 @@ data <- data %>%
 data <- data %>% filter(Start < Stop)
 
 
-
-
+library(survival)
+library(survminer)
 # Fit the time-dependent Cox model
 cox_model_td <- coxph(Surv(Start, Stop, freezing) ~ Groups + disease_duration  + cluster(ID), data = data)
 
@@ -4086,7 +4086,137 @@ Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% inner_join(pats_to_su
 names(Echellesmdsupdrs_20250106)
 
 
-fwrite(Echellesmdsupdrs_20250106, "Pats_1409_Echellesmdsupdrs_20250106.csv")v
+fwrite(Echellesmdsupdrs_20250106, "Pats_1409_Echellesmdsupdrs_20250106.csv")
+
+Echellesmdsupdrs_20250106 <- fread("Pats_1409_Echellesmdsupdrs_20250106.csv")
+
+names(Echellesmdsupdrs_20250106)
+
+
+names(Echellesmdsupdrs_20250106)
+
+
+Echellesmdsupdrs_20250106 %>%  filter(!is.na(mds3_tot_on)) %>%
+  group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance)) %>%
+  select(anonyme_id, mds3_rigd_cou_on, mds3_rigd_mbsupd_on, mds3_rigd_mbsupg_on, mds3_rigd_mbinfd_on, mds3_rigd_mbinfg_on) %>%
+  mutate(mds3_rigd_cou_on=as.numeric(mds3_rigd_cou_on)) %>%
+  mutate(mds3_rigd_mbsupd_on=as.numeric(mds3_rigd_mbsupd_on)) %>%
+  mutate(mds3_rigd_mbsupg_on=as.numeric(mds3_rigd_mbsupg_on)) %>%
+  mutate(mds3_rigd_mbinfd_on=as.numeric(mds3_rigd_mbinfd_on)) %>%
+  mutate(mds3_rigd_mbinfg_on=as.numeric(mds3_rigd_mbinfg_on)) %>%
+  mutate(Rigidity=mds3_rigd_cou_on+mds3_rigd_mbsupd_on+mds3_rigd_mbsupg_on+mds3_rigd_mbinfd_on+mds3_rigd_mbinfg_on) %>% 
+  filter(!is.na(Rigidity)) %>% ungroup() %>%
+  summarise(mean=mean(Rigidity), 
+            se=sd(Rigidity),
+            median=median(Rigidity),
+            q25=quantile(Rigidity, 0.25),
+            q75=quantile(Rigidity, 0.75))
+
+
+
+Echellesmdsupdrs_20250106 %>%  filter(!is.na(mds3_tot_on)) %>%
+  group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance)) %>%
+  select(anonyme_id, mds3_lever_fauteil_on,mds3_marche_on,mds3_blocage_on,mds3_stab_posturale_on) %>%
+  mutate(mds3_lever_fauteil_on=as.numeric(mds3_lever_fauteil_on)) %>%
+  mutate(mds3_marche_on=as.numeric(mds3_marche_on)) %>%
+  mutate(mds3_blocage_on=as.numeric(mds3_blocage_on)) %>%
+  mutate(mds3_stab_posturale_on=as.numeric(mds3_stab_posturale_on)) %>%
+  mutate(Axial=mds3_lever_fauteil_on+mds3_marche_on +mds3_blocage_on+mds3_stab_posturale_on) %>% 
+  filter(!is.na(Axial)) %>% ungroup() %>%
+  summarise(mean=mean(Axial), 
+            se=sd(Axial),
+            median=median(Axial),
+            q25=quantile(Axial, 0.25),
+            q75=quantile(Axial, 0.75))
+
+
+
+Echellesmdsupdrs_20250106 %>%  filter(!is.na(mds3_tot_on)) %>%
+  group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance)) %>%
+  select(anonyme_id, mds3_tap_doigtd_on,mds3_tap_doigtg_on,mds3_mvm_maind_on,mds3_mvm_maing_on,mds3_pron_maind_on,mds3_pron_maing_on,mds3_tap_oreild_on,mds3_tap_oreilg_on,mds3_agilite_jambed_on,mds3_agilite_jambeg_on) %>%
+  mutate(mds3_tap_doigtd_on=as.numeric(mds3_tap_doigtd_on)) %>%
+  mutate(mds3_tap_doigtg_on=as.numeric(mds3_tap_doigtg_on)) %>%
+  mutate(mds3_mvm_maind_on=as.numeric(mds3_mvm_maind_on)) %>%
+  mutate(mds3_mvm_maing_on=as.numeric(mds3_mvm_maing_on)) %>%
+  mutate(mds3_pron_maind_on=as.numeric(mds3_pron_maind_on)) %>%
+  mutate(mds3_pron_maing_on=as.numeric(mds3_pron_maing_on)) %>%
+  mutate(mds3_tap_oreild_on=as.numeric(mds3_tap_oreild_on)) %>%
+  mutate(mds3_tap_oreilg_on=as.numeric(mds3_tap_oreilg_on)) %>%
+  mutate(mds3_agilite_jambed_on=as.numeric(mds3_agilite_jambed_on)) %>%
+  mutate(mds3_agilite_jambeg_on=as.numeric(mds3_agilite_jambeg_on)) %>%
+  mutate(Brady=mds3_tap_doigtd_on+mds3_tap_doigtg_on+mds3_mvm_maind_on+mds3_mvm_maing_on+mds3_pron_maind_on+mds3_pron_maing_on+mds3_tap_oreild_on+mds3_tap_oreilg_on+mds3_agilite_jambed_on+mds3_agilite_jambeg_on) %>% 
+  filter(!is.na(Brady)) %>% ungroup() %>%
+  summarise(mean=mean(Brady), 
+            se=sd(Brady),
+            median=median(Brady),
+            q25=quantile(Brady, 0.25),
+            q75=quantile(Brady, 0.75))
+
+
+
+Echellesmdsupdrs_20250106 %>%  filter(!is.na(mds3_tot_on)) %>%
+  group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance)) %>%
+  select(anonyme_id, mds3_trem_post_mainsd_on,mds3_trem_post_mainsg_on,mds3_trem_action_mainsd_on,mds3_trem_action_mainsg_on,mds3_amp_trem_mbsupd_on,mds3_amp_trem_mbsupg_on,mds3_amp_trem_mbinfd_on,mds3_amp_trem_mbinfg_on,mds3_amp_trem_levre_on,mds3_constante_trem_on) %>%
+  mutate(mds3_trem_post_mainsd_on=as.numeric(mds3_trem_post_mainsd_on)) %>%
+  mutate(mds3_trem_post_mainsg_on=as.numeric(mds3_trem_post_mainsg_on)) %>%
+  mutate(mds3_trem_action_mainsd_on=as.numeric(mds3_trem_action_mainsd_on)) %>%
+  mutate(mds3_trem_action_mainsg_on=as.numeric(mds3_trem_action_mainsg_on)) %>%
+  mutate(mds3_amp_trem_mbsupd_on=as.numeric(mds3_amp_trem_mbsupd_on)) %>%
+  mutate(mds3_amp_trem_mbsupg_on=as.numeric(mds3_amp_trem_mbsupg_on)) %>%
+  mutate(mds3_amp_trem_mbinfd_on=as.numeric(mds3_amp_trem_mbinfd_on)) %>%
+  mutate(mds3_amp_trem_mbinfg_on=as.numeric(mds3_amp_trem_mbinfg_on)) %>%
+  mutate(mds3_amp_trem_levre_on=as.numeric(mds3_amp_trem_levre_on)) %>%
+  mutate(mds3_constante_trem_on=as.numeric(mds3_constante_trem_on)) %>%
+  mutate(Tremor=mds3_trem_post_mainsd_on+mds3_trem_post_mainsg_on+mds3_trem_action_mainsd_on+mds3_trem_action_mainsg_on+mds3_amp_trem_mbsupd_on+mds3_amp_trem_mbsupg_on+mds3_amp_trem_mbinfd_on+mds3_amp_trem_mbinfg_on+mds3_amp_trem_levre_on+mds3_constante_trem_on) %>% 
+  filter(!is.na(Tremor)) %>% ungroup() %>%
+  summarise(mean=mean(Tremor), 
+            se=sd(Tremor),
+            median=median(Tremor),
+            q25=quantile(Tremor, 0.25),
+            q75=quantile(Tremor, 0.75))
+
+
+
+LEDD <- read_excel(path = "Consultation_20250106.xlsx")
+
+LEDD <- LEDD %>%
+  select(anonyme_id, act_datedeb, ttt_ledd_totale, 
+         ttt_ledd_amantadine, ttt_ledd_rasagiline, ttt_ledd_ago)
+
+LEDD <- LEDD %>% inner_join(pats_to_summary  %>% select(anonyme_id) %>% distinct()) %>%
+  group_by(anonyme_id) %>% filter(act_datedeb==min(act_datedeb))
+
+
+
+mean(as.numeric(LEDD$ttt_ledd_totale), na.rm=T) 
+sd(as.numeric(LEDD$ttt_ledd_totale), na.rm=T)
+median(as.numeric(LEDD$ttt_ledd_totale), na.rm=T) 
+quantile(as.numeric(LEDD$ttt_ledd_totale), 0.25, na.rm=T)
+quantile(as.numeric(LEDD$ttt_ledd_totale), 0.75, na.rm=T)
+
+
+mean(as.numeric(LEDD$ttt_ledd_amantadine), na.rm=T) 
+sd(as.numeric(LEDD$ttt_ledd_amantadine), na.rm=T)
+median(as.numeric(LEDD$ttt_ledd_amantadine), na.rm=T) 
+quantile(as.numeric(LEDD$ttt_ledd_amantadine), 0.25, na.rm=T)
+quantile(as.numeric(LEDD$ttt_ledd_amantadine), 0.75, na.rm=T)
+
+
+mean(as.numeric(LEDD$ttt_ledd_rasagiline), na.rm=T) 
+sd(as.numeric(LEDD$ttt_ledd_rasagiline), na.rm=T)
+median(as.numeric(LEDD$ttt_ledd_rasagiline), na.rm=T) 
+quantile(as.numeric(LEDD$ttt_ledd_rasagiline), 0.25, na.rm=T)
+quantile(as.numeric(LEDD$ttt_ledd_rasagiline), 0.75, na.rm=T)
+
+
+mean(as.numeric(LEDD$ttt_ledd_ago), na.rm=T) 
+sd(as.numeric(LEDD$ttt_ledd_ago), na.rm=T)
+median(as.numeric(LEDD$ttt_ledd_ago), na.rm=T) 
+quantile(as.numeric(LEDD$ttt_ledd_ago), 0.25, na.rm=T)
+quantile(as.numeric(LEDD$ttt_ledd_ago), 0.75, na.rm=T)
+
+
+
 
 # ----------------
 
@@ -4107,3 +4237,156 @@ data.frame(data_v %>% select(redcap_data_access_group, anonyme_id) %>% distinct(
 
 
 # ---------
+# MOCA ----------
+df_complet <- fread( "df_complet.txt")
+
+length(unique(df_complet$anonyme_id...1)) # 25602
+
+df_complet <- df_complet %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
+  filter(hoehn_yahr_on>0) 
+
+length(unique(df_complet$anonyme_id...1)) # 17319
+
+first_visit <- df_complet  %>%  select(`anonyme_id...1`, B, `act_datedeb...5`,disease_duration, freezing) %>%
+  filter(disease_duration<=5) %>% filter(freezing==0) %>% group_by(anonyme_id...1) %>%
+  filter(B==0) %>%
+  filter(`act_datedeb...5`==min(`act_datedeb...5`)) %>%  select(-c(freezing, disease_duration, B))
+
+
+first_visit %>% ungroup() %>% left_join(
+  df_complet %>% select(`anonyme_id...1`,  `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1) %>% distinct() # 2389
+
+second_visit <- first_visit %>% ungroup() %>% mutate(act_datedeb...5 =as.Date(act_datedeb...5 )) %>% 
+  left_join(
+  df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`) %>% rename("v2_act_datedeb...5"="act_datedeb...5")
+  ) %>% mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  mutate(elapsed=lubridate::interval(act_datedeb...5, v2_act_datedeb...5  ) %/% months(1)) %>%
+  filter(elapsed>=6 & elapsed<=24) %>%
+  select(anonyme_id...1, v2_act_datedeb...5) %>% distinct()
+
+
+
+first_to_second_visit <- first_visit %>% mutate(act_datedeb...5=as.Date(act_datedeb...5)) %>%
+  inner_join(second_visit ) %>% 
+  mutate( `act_datedeb...5`=as.Date( `act_datedeb...5`)) %>%
+  mutate(`v2_act_datedeb...5`=as.Date(v2_act_datedeb...5)) %>%
+  group_by(anonyme_id...1) %>% 
+  filter(v2_act_datedeb...5==min(v2_act_datedeb...5)) %>%
+  filter(act_datedeb...5==min(act_datedeb...5)) %>% distinct()
+
+
+names(df_complet)
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1&D==1, "1- LD+Amantadine",
+                                     ifelse(B==1, "2- LD (combo)",
+                                            ifelse(A==1|C==1|ASC==1,"3- Agonists",
+                                                   ifelse(A==0&B==0&C==0&D==0&E==0&TO==0&SCP==0&LGI==0&ASC==0, "4- None", "Remove"))))) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+Groups <- df_complet %>%  mutate(Groups=ifelse(B==1, "1- LD", "2- Other")) %>%
+  select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+Groups %>% group_by(Groups) %>% count()
+
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(Groups) %>% 
+  left_join(Groups %>% rename("v2_Groups"="Groups"), by=c("v2_act_datedeb...5"="act_datedeb...5", "anonyme_id...1"="anonyme_id...1")) 
+
+first_to_second_visit <- first_to_second_visit %>% 
+  group_by(anonyme_id...1) %>% filter(Groups==min(Groups)) %>% filter(v2_Groups==min(v2_Groups))
+
+first_to_second_visit$act_datedeb...5 <- as.Date(first_to_second_visit$act_datedeb...5)
+first_to_second_visit$v2_act_datedeb...5 <- as.Date(first_to_second_visit$v2_act_datedeb...5)
+
+first_to_second_visit <- first_to_second_visit %>% distinct()
+
+first_to_second_visit <- first_to_second_visit %>% ungroup()
+
+
+
+
+first_to_second_visit <- first_to_second_visit %>% select(anonyme_id...1, act_datedeb...5, Groups)
+
+
+
+B_groups <- df_complet %>% select(anonyme_id...1, B) %>% distinct() %>% group_by(anonyme_id...1) %>%
+  summarise(B=max(B))
+
+
+first_to_second_visit <- first_to_second_visit %>% left_join(B_groups) %>% ungroup()
+
+unique(first_to_second_visit$B)
+
+data_v <- read_excel(path = "Consultation_20250106.xlsx")
+
+names(data_v)
+
+data_v <- data_v %>% select(anonyme_id, act_datedeb, freezing )
+
+data_v$act_datedeb <- as.Date(data_v$act_datedeb)
+
+first_to_second_visit <- first_to_second_visit %>% left_join(data_v, by=c("anonyme_id...1"="anonyme_id")) %>%
+  filter(act_datedeb>=act_datedeb...5) %>% mutate(freezing=ifelse(freezing==">=2", "2", freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na()
+
+
+mean(first_to_second_visit$freezing)
+
+first_to_second_visit <- first_to_second_visit %>% mutate(elapsed=as.numeric(act_datedeb-act_datedeb...5)) %>%
+  select(-c(act_datedeb...5, act_datedeb)) %>%
+  arrange(anonyme_id...1, elapsed) %>% group_by(anonyme_id...1) %>%
+  mutate(freezing=cumsum(freezing)) %>% mutate(freezing=ifelse(freezing==0,0,1))
+
+filtered_data <- first_to_second_visit %>%
+  group_by(anonyme_id...1) %>%
+  mutate(first_freezing = which(freezing == 1)[1]) %>%
+  filter(row_number() <= first_freezing | is.na(first_freezing)) %>%
+  ungroup()
+
+# View result
+filtered_data
+
+filtered_data <- filtered_data %>% select(-first_freezing)
+
+length(unique(filtered_data$anonyme_id...1)) # 1409
+
+pats_to_summary <- filtered_data %>% select(anonyme_id...1) %>% rename("anonyme_id"="anonyme_id...1")
+
+pats_to_summary <- pats_to_summary %>% distinct()
+
+
+
+TestsNeuropsy_20250106 <- read_excel(path = "TestsNeuropsy_20250106.xlsx")
+
+TestsNeuropsy_20250106 <- TestsNeuropsy_20250106 %>% select(anonyme_id, total_moca, moca2_total, redcap_repeat_instance) %>% distinct() %>%
+  group_by(anonyme_id) %>% filter(redcap_repeat_instance==min(redcap_repeat_instance)) %>% drop_na() %>%
+  inner_join(pats_to_summary)
+
+
+TestsNeuropsy_20250106 %>% ungroup() %>% filter(moca2_total>0) %>%
+  summarise(mean=mean(moca2_total), 
+            se=sd(moca2_total),
+            median=median(moca2_total),
+            q25=quantile(total_moca, 0.25),
+            q75=quantile(moca2_total, 0.75))
+
+
+# ------------
