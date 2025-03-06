@@ -3810,3 +3810,233 @@ mean(PPMI_Curated_Data_Cut_Public_20241211$moca, na.rm=T) ; sd(PPMI_Curated_Data
 median(PPMI_Curated_Data_Cut_Public_20241211$moca, na.rm=T) 
 quantile(PPMI_Curated_Data_Cut_Public_20241211$moca, 0.25)
 quantile(PPMI_Curated_Data_Cut_Public_20241211$moca, 0.75)
+
+#  LEDD baseline (carefull interpret) ---------------------------------------------------
+
+# Curated Data
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on
+
+# PPMI patients 
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 3866
+
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+
+
+#  PD only
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(COHORT) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+  
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1441
+
+
+#  Known H&Y >0
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(hy_on!="." & hy_on!="0" ) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1422
+
+
+# Known disease duration <5 at baseline
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(duration_yrs<=5) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1345
+
+
+# >1 visit
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  group_by(PATNO) %>% count() %>% filter(n>1) %>% ungroup() %>%
+  select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1086
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, hy_on)
+
+
+
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(LEDTRT) %>% distinct()
+
+# fwrite(Levodopa_lookups, "Levodopa_lookups.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDTRT, STARTDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% group_by(PATNO, STARTDT) %>% summarise(Contains_Levodopa=max(Contains_Levodopa))
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa==1) %>% ungroup() 
+
+
+
+
+
+
+# Freezing
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- fread("Medical/Determination_of_Freezing_and_Falls_12Feb2025.csv")
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- Determination_of_Freezing_and_Falls_12Feb2025 %>% 
+  select(PATNO, PATNO, EVENT_ID,  INFODT , FRZGT12M , FRZGT1W)
+
+Determination_of_Freezing_and_Falls_12Feb2025$PATNO <- as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$PATNO)
+
+mean(as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$FRZGT12M), na.rm=T)
+
+mean(as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$FRZGT1W), na.rm=T)
+
+Determination_of_Freezing_and_Falls_12Feb2025 %>% group_by(FRZGT1W) %>% count() 
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(Determination_of_Freezing_and_Falls_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="INFODT"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c(EVENT_ID, FRZGT12M)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>% 
+  select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Contains_Levodopa=ifelse(is.na(Contains_Levodopa), 0, Contains_Levodopa)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP), 0, Levodopa_EXP)) 
+
+
+
+
+
+
+
+# Patients with vs without Levodopa at baseline
+
+LD_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct()
+
+length(LD_at_baseline_pats$PATNO) # 15
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
+
+
+
+# Patinets with vs without FOG at baseline
+
+FOG_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(FRZGT1W >0) %>% select(PATNO) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  group_by(FRZGT1W) %>% count()
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(LD_at_baseline_pats %>% mutate(LD_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(FOG_at_baseline_pats %>% mutate(FOG_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(LD_baseline=ifelse(is.na(LD_baseline), 0, LD_baseline))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% anti_join(FOG_at_baseline_pats)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) #1057
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$FRZGT1W)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(is.na(FRZGT1W), 0, FRZGT1W))
+
+
+PPMI_Curated_Data_Cut_Public_20241211
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(YEAR==min(YEAR)) %>%
+  select(PATNO, visit_date, YEAR)
+
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% 
+  left_join(Levodopa_lookups_complete) 
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% inner_join(PPMI_Curated_Data_Cut_Public_20241211 %>% select(PATNO) %>% distinct())
+
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>%
+  mutate(STARTDT =as.Date(paste("01/", as.character(STARTDT )), "%d/%m/%Y"))  %>%
+  mutate(STOPDT =as.Date(paste("01/", as.character(STOPDT )), "%d/%m/%Y")) 
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa!=1)
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>%
+  mutate(ORIG_ENTRY =as.Date(paste("01/", as.character(ORIG_ENTRY )), "%d/%m/%Y")) 
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% 
+  select(PATNO, STARTDT, STOPDT, ORIG_ENTRY, LEDD)
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(
+    PPMI_Curated_Data_Cut_Public_20241211 %>% ungroup() %>%
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025) %>%
+  group_by(PATNO) %>% filter(ORIG_ENTRY ==min(ORIG_ENTRY )) %>%
+      group_by(PATNO) %>% filter(visit_date<=(STOPDT )) %>%
+        group_by(PATNO) %>% filter(visit_date>=(STARTDT     )) %>%
+    group_by(PATNO) %>% summarise(LEDD=sum(as.numeric(LEDD)))
+  ) %>%
+  mutate(LEDD=ifelse(is.na(LEDD),0,LEDD)) 
+
+
+mean(PPMI_Curated_Data_Cut_Public_20241211$LEDD, na.rm=T) ; sd(PPMI_Curated_Data_Cut_Public_20241211$LEDD, na.rm=T)
+median(PPMI_Curated_Data_Cut_Public_20241211$LEDD, na.rm=T) 
+quantile(PPMI_Curated_Data_Cut_Public_20241211$LEDD, 0.25)
+quantile(PPMI_Curated_Data_Cut_Public_20241211$LEDD, 0.75)
+
+
+# --------------------------------
