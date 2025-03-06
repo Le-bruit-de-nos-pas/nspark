@@ -4564,7 +4564,7 @@ data %>% group_by(B) %>% count()
 ggsurvplot(km_fit, data = data, 
            pval = TRUE,          # Add p-value for log-rank test
            conf.int = TRUE,      # Add confidence interval
-           #risk.table = TRUE,    # Add risk table to the plot
+           risk.table = TRUE,    # Add risk table to the plot
            palette = c("#CD3333", "#83CBEB"), # Example color palette
            ggtheme = theme_minimal(),
            xlab=("\n Number of Days From Baseline"),
@@ -4574,24 +4574,42 @@ ggsurvplot(km_fit, data = data,
 summary(km_fit)
 
 # Optional: If you want to do a formal comparison
-log_rank_test <- survdiff(Surv(elapsed, freezing) ~ Groups, data = data)
+log_rank_test <- survdiff(Surv(elapsed, freezing ) ~ B, data = data)
 
 log_rank_test
 
-
-# Call:
-# survdiff(formula = Surv(elapsed, freezing) ~ Groups, data = data)
+# all:
+# survdiff(formula = Surv(elapsed, freezing) ~ B, data = data)
 # 
-#                             N Observed Expected (O-E)^2/E (O-E)^2/V
-# Groups=Levodopa Baseline 1005      198      155     12.15        20
-# Groups=no LD baseline    1385      212      255      7.36        20
+#                          N Observed Expected (O-E)^2/E (O-E)^2/V
+# B=Levodopa-experienced 518       46       59      2.86        13
+# B=Levodopa-naive       403       32       19      8.87        13
 # 
-#  Chisq= 20  on 1 degrees of freedom, p= 8e-06 
+#  Chisq= 13  on 1 degrees of freedom, p= 3e-04 
 
 survdiff(Surv(elapsed, freezing) ~ B, data = data, rho = 1)  # Peto-Peto test
 
+# > survdiff(Surv(elapsed, freezing) ~ B, data = data, rho = 1)  # Peto-Peto test
+# Call:
+# survdiff(formula = Surv(elapsed, freezing) ~ B, data = data, 
+#     rho = 1)
+# 
+#                          N Observed Expected (O-E)^2/E (O-E)^2/V
+# B=Levodopa-experienced 518     41.6     53.8      2.76      12.6
+# B=Levodopa-naive       403     30.4     18.2      8.15      12.6
+# 
+#  Chisq= 12.6  on 1 degrees of freedom, p= 4e-04 
+
 coxph(Surv(elapsed, freezing) ~ B, data = data)
 
+# Call:
+# coxph(formula = Surv(elapsed, freezing) ~ B, data = data)
+# 
+#                   coef exp(coef) se(coef)     z        p
+# BLevodopa-naive 0.8737    2.3958   0.2483 3.518 0.000435
+# 
+# Likelihood ratio test=11.76  on 1 df, p=0.0006051
+# n= 921, number of events= 78 
 
 # ---------
 # Baseline LEDD (careful, should NOT be ON Levodopa) -----------
