@@ -2016,4 +2016,8 @@ df %>%
         axis.title.y = element_text(size = 10, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt")) 
 
+
+df
+
+
 # ----
