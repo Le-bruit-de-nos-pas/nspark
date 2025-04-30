@@ -2021,3 +2021,152 @@ df
 
 
 # ----
+
+# Compare those enroled vs those failing to do so (15 vs 19) ---------
+Info_patient <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="Info_patient")
+names(Info_patient)
+Info_patient <- Info_patient %>% mutate(sexe=ifelse(sexe=="H", "M", sexe))
+
+
+
+non_enr_etp_pats <- fread("data/non_enr_etp_pats.csv")
+names(non_enr_etp_pats)
+
+
+mean(Info_patient$age_inclusion)
+
+mean(non_enr_etp_pats$Age)
+
+
+wilcox.test(non_enr_etp_pats$Age, Info_patient$age_inclusion, paired = FALSE)
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  non_enr_etp_pats$Age and Info_patient$age_inclusion
+# W = 148, p-value = 0.8623
+# alternative hypothesis: true location shift is not equal to 0
+
+
+group <- c(rep("Group1", length(non_enr_etp_pats$sex)), rep("Group2", length(Info_patient$sexe)))
+sex <- c(non_enr_etp_pats$sex, Info_patient$sexe)
+tbl <- table(group, sex)
+print(tbl)
+
+fisher.test(tbl)
+
+# 	Fisher's Exact Test for Count Data
+# 
+# data:  tbl
+# p-value = 0.4953
+# alternative hypothesis: true odds ratio is not equal to 1
+# 95 percent confidence interval:
+#  0.364914 9.374067
+# sample estimates:
+# odds ratio 
+#   1.769006 
+
+
+
+
+
+
+
+Histoire_AMS <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="Histoire_AMS")
+
+Histoire_AMS <- Histoire_AMS %>% mutate(type=ifelse(AMS_C==1,"C", "P"))
+
+
+group <- c(rep("Group1", length(non_enr_etp_pats$P1C2)), rep("Group2", length(Histoire_AMS$type)))
+type <- c(non_enr_etp_pats$P1C2, Histoire_AMS$type)
+tbl <- table(group, type)
+print(tbl)
+
+fisher.test(tbl)
+
+
+# 	Fisher's Exact Test for Count Data
+# 
+# data:  tbl
+# p-value = 1
+# alternative hypothesis: true odds ratio is not equal to 1
+# 95 percent confidence interval:
+#   0.2190377 11.0520156
+# sample estimates:
+# odds ratio 
+#    1.41382 
+
+
+Visites <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="Visites")
+
+Visites <- Visites %>% select(num_patient, num_visite, date_visite, visite_realisee) %>%
+  mutate(date_visite=as.Date(date_visite))
+
+Histoire_AMS <- Histoire_AMS %>% 
+  inner_join(Visites %>% filter(num_visite=="V0") %>% select(num_patient, date_visite)) %>%
+  mutate(date_visite=as.character(date_visite)) %>%
+  mutate(date_visite=str_sub(date_visite,1L, 4L)) %>% mutate(diag_dur=12*(as.numeric(date_visite)-AMS_date_diag_an ))
+
+
+
+
+mean(Histoire_AMS$diag_dur)
+mean(non_enr_etp_pats$`diagnosis duration (months)`)
+
+
+wilcox.test(Histoire_AMS$diag_dur, non_enr_etp_pats$`diagnosis duration (months)`, paired = FALSE)
+
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  Histoire_AMS$diag_dur and non_enr_etp_pats$`diagnosis duration (months)`
+# W = 96, p-value = 0.1075
+# alternative hypothesis: true location shift is not equal to 0
+
+
+
+
+UMSARS1 <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="UMSARS1")
+UMSARS1 <- UMSARS1 %>% filter(UMSARS1_realise==1) %>% select(num_patient, num_visite, UMSARS1_total)
+UMSARS1 <- UMSARS1 %>% ungroup() %>%  mutate(UMSARS1_total=as.numeric(UMSARS1_total)) %>% drop_na()
+UMSARS1 <- UMSARS1 %>% filter(num_visite=="V0")
+
+
+
+
+UMSARS2 <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="UMSARS2")
+UMSARS2 <- UMSARS2 %>% filter(UMSARS2_realise ==1) %>% select(num_patient, num_visite, UMSARS2_total)
+UMSARS2 <- UMSARS2 %>% ungroup() %>%  mutate(UMSARS2_total=as.numeric(UMSARS2_total)) %>% drop_na()
+UMSARS2 <- UMSARS2 %>% filter(num_visite=="V0")
+
+
+wilcox.test(non_enr_etp_pats$`UMSARS I`, UMSARS1$UMSARS1_total, paired = FALSE)
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  non_enr_etp_pats$`UMSARS I` and UMSARS1$UMSARS1_total
+# W = 212, p-value = 0.01642
+# alternative hypothesis: true location shift is not equal to 0
+
+
+mean(non_enr_etp_pats$`UMSARS I`) # 27.8
+sd(non_enr_etp_pats$`UMSARS I`) # 9.1
+mean(UMSARS1$UMSARS1_total) # 20.2
+sd(UMSARS1$UMSARS1_total) # 6.5
+
+wilcox.test(non_enr_etp_pats$`UMSARS II`, UMSARS2$UMSARS2_total, paired = FALSE)
+
+
+# 	Wilcoxon rank sum test with continuity correction
+# 
+# data:  non_enr_etp_pats$`UMSARS II` and UMSARS2$UMSARS2_total
+# W = 215, p-value = 0.01238
+# alternative hypothesis: true location shift is not equal to 0
+
+
+
+mean(non_enr_etp_pats$`UMSARS II`) # 28.2
+sd(non_enr_etp_pats$`UMSARS II`) # 9.4
+mean(UMSARS2$UMSARS2_total) # 19.3
+sd(UMSARS2$UMSARS2_total) # 9.0
+
+# ----------------------
