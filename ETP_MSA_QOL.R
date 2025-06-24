@@ -398,8 +398,18 @@ print(posthoc_result)
 
 # QOL_AMS *****************
 
+# 56, 48
+
 QOL_AMS <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="QOL_AMS")
-QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% select(num_patient, num_visite, QOL_AMS_total, QOL_AMS_echelle_anal)
+names(QOL_AMS)
+QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% select(num_patient, num_visite, Motor, Non_Motor, Emotional, QOL_AMS_total, QOL_AMS_echelle_anal)
+
+
+QOL_AMS <- QOL_AMS %>% mutate(Motor=Motor*(100/160), 
+                              Non_Motor=Non_Motor*(100/160), 
+                              Emotional=Emotional*(100/160), 
+                              QOL_AMS_total=Motor+Non_Motor+Emotional) %>%
+  select(-Motor, -Non_Motor, -Emotional)
 
 data.frame(QOL_AMS)
 
@@ -411,10 +421,11 @@ QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%
             q25=quantile(QOL_AMS_total, 0.25),
             q75=quantile(QOL_AMS_total, 0.75))
 
-#   num_visite  mean    se median   q25   q75
-# 1 V0          67.4  23.5   69    46.5  85  
-# 2 V1          65.3  16.6   70.5  55.2  74.8
-# 3 V2          75.2  27.1   74    64    89  
+#  num_visite  mean    se median   q25   q75
+#   <chr>      <dbl> <dbl>  <dbl> <dbl> <dbl>
+# 1 V0          40.3  15.7   37.8  28.4  48.9
+# 2 V1          41.1  10.9   44.4  34.8  47.0
+# 3 V2          47.4  17.6   48.4  39.7  55.8
 
 QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%  
     filter(num_patient != 1 & num_patient!= 2 & num_patient !=3) %>%
@@ -453,7 +464,7 @@ QOL_AMS %>%
   scale_fill_manual(values=c("#baebff", "#69adc6", "#283f60")) +
   xlab("\n Visit Number") +
   ylab("MSA QoL Total \n [Patient] \n") +
-  ylim(0, 150)
+  ylim(0, 100)
 
 
 
@@ -501,12 +512,12 @@ QOL_AMS %>% group_by(num_visite) %>%
             median=median(QOL_AMS_total),
             q25=quantile(QOL_AMS_total, 0.25),
             q75=quantile(QOL_AMS_total, 0.75))
-
-#  num_visite  mean    se median   q25   q75
-# 1 V0          64.5  24.0     65    46    76
-# 2 V1          66.3  16.9     73    56    75
-# 3 V2          75.2  27.1     74    64    89
-
+# 
+#   num_visite  mean    se median   q25   q75
+#   <chr>      <dbl> <dbl>  <dbl> <dbl> <dbl>
+# 1 V0          40.3  15.7   37.8  28.4  48.9
+# 2 V1          41.1  10.9   44.4  34.8  47.0
+# 3 V2          47.4  17.6   48.4  39.7  55.8
 
 QOL_AMS %>% group_by(num_visite) %>%  
   summarise(mean=mean(QOL_AMS_echelle_anal), se=sd(QOL_AMS_echelle_anal),
@@ -581,7 +592,11 @@ QOL_AMS <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="QOL_AMS")
 
 QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% select(num_patient, num_visite, 
                                                              QOL_AMS_total, QOL_AMS_echelle_anal,
-                                                             Motor, Non_Motor, Emotional)
+                                                             Motor, Non_Motor, Emotional) %>%
+   mutate(Motor=Motor*(100/160), 
+                              Non_Motor=Non_Motor*(100/160), 
+                              Emotional=Emotional*(100/160), 
+                              QOL_AMS_total=Motor+Non_Motor+Emotional)
 
 data.frame(QOL_AMS)
 
@@ -593,10 +608,11 @@ QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%
             q25=quantile(Motor , 0.25),
             q75=quantile(Motor , 0.75))
 
-#   num_visite  mean    se median   q25   q75
-# 1 V0          24.5 10.4      22  17.5  32.5
-# 2 V1          25.1  7.48     25  20.8  30.5
-# 3 V2          28.7 10.9      29  22    33  
+# num_visite  mean    se median   q25   q75
+#   <chr>      <dbl> <dbl>  <dbl> <dbl> <dbl>
+# 1 V0          13.9  5.06   13.4  11.1  18.1
+# 2 V1          15.7  4.48   15.6  13.9  18.4
+# 3 V2          18.5  6.70   18.8  16.1  21.2
 
 QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%  
       filter(num_patient != 1 & num_patient!= 2 & num_patient !=3) %>%
@@ -605,11 +621,11 @@ QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%
             q25=quantile(Non_Motor, 0.25),
             q75=quantile(Non_Motor, 0.75))
 
-#  num_visite  mean    se median   q25   q75
-# 1 V0          20.5  8.83     17  13.5  27.5
-# 2 V1          19.9  5.66     20  16    24.5
-# 3 V2          19.7  8.30     17  15    28 
-
+#   num_visite  mean    se median   q25   q75
+#   <chr>      <dbl> <dbl>  <dbl> <dbl> <dbl>
+# 1 V0          11.9  5.75   10    7.97  17.0
+# 2 V1          12.3  3.63   12.5  9.69  14.7
+# 3 V2          11.9  5.17   10.6  9.06  14.5
 
 QOL_AMS %>% ungroup() %>% group_by(num_visite) %>% 
       filter(num_patient != 1 & num_patient!= 2 & num_patient !=3) %>%
@@ -619,9 +635,10 @@ QOL_AMS %>% ungroup() %>% group_by(num_visite) %>%
             q75=quantile(Emotional, 0.75))
 
 #   num_visite  mean    se median   q25   q75
-# 1 V0          22.5  11.8     21  14    28  
-# 2 V1          20.2  11.4     22  10.8  27.8
-# 3 V2          26.8  12.1     28  18    34  
+#   <chr>      <dbl> <dbl>  <dbl> <dbl> <dbl>
+# 1 V0          14.6  8.00   13.1  8.59  19.8
+# 2 V1          13.1  6.55   13.8 10.2   15.8
+# 3 V2          17.0  7.83   18.1 11.1   21.9
 
 
 # 500 #500
@@ -648,7 +665,7 @@ QOL_AMS %>%
   scale_fill_manual(values=c("#baebff", "#69adc6", "#283f60")) +
   xlab("\n Visit Number") +
   ylab("MSA QoL Motor \n [Patient] \n") +
-  ylim(0, 50)
+  ylim(0, 30)
 
 
 
@@ -677,7 +694,7 @@ QOL_AMS %>%
   scale_fill_manual(values=c("#baebff", "#69adc6", "#283f60")) +
   xlab("\n Visit Number") +
   ylab("MSA QoL Non_Motor \n [Patient] \n") +
-  ylim(0, 50)
+  ylim(0, 30)
 
 
 # 500 #500
@@ -704,7 +721,7 @@ QOL_AMS %>%
   scale_fill_manual(values=c("#baebff", "#69adc6", "#283f60")) +
   xlab("\n Visit Number") +
   ylab("MSA QoL Emotional \n [Patient] \n") +
-  ylim(0, 50)
+  ylim(0, 35)
 
 
 data.frame(QOL_AMS)
@@ -922,7 +939,13 @@ UMSARS2 <- UMSARS2 %>% filter(UMSARS2_realise ==1) %>% select(num_patient, num_v
 UMSARS2 <- UMSARS2 %>% ungroup() %>%  mutate(UMSARS2_total=as.numeric(UMSARS2_total)) %>% drop_na()
 
 QOL_AMS <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="QOL_AMS")
-QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% select(num_patient, num_visite, QOL_AMS_total, QOL_AMS_echelle_anal, Motor, Non_Motor, Emotional)
+QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% 
+  select(num_patient, num_visite, QOL_AMS_total, QOL_AMS_echelle_anal, Motor, Non_Motor, Emotional) %>%
+   mutate(Motor=Motor*(100/160), 
+                              Non_Motor=Non_Motor*(100/160), 
+                              Emotional=Emotional*(100/160), 
+                              QOL_AMS_total=Motor+Non_Motor+Emotional)
+
 
 pats_to_match <- Visites %>% filter(num_visite=="V0") %>% select(num_patient, date_visite ) %>%
   inner_join(Info_patient %>% mutate(sexe=ifelse(sexe=="H",1,0)) ) %>%
@@ -1084,14 +1107,28 @@ SCHRAG <- SCHRAG %>% select(NUM, DATECONSULT, TIME_STUDY, Year, SCHRAG_TOT_v2, S
 
 SCHRAG <- SCHRAG %>% drop_na()
 
-
+range(SCHRAG$SCHRAG_TOT_v2)
 mean(SCHRAG$SCHRAG_TOT_v2)
 mean(SCHRAG$ECHANQV)
 
 SCHRAG <- SCHRAG %>% select(-ECHANQV)
 
 
+range(SCHRAG$SCHRAG_MOTOR_v2)
+range(SCHRAG$SCHRAG_NONMOTOR_v2)
+range(SCHRAG$SCHRAG_EMOTIONAL_v2)
+
+
+SCHRAG <- SCHRAG %>% mutate(SCHRAG_TOT_v2=SCHRAG_TOT_v2*(100/160),
+                  SCHRAG_MOTOR_v2 =SCHRAG_MOTOR_v2 *(100/160),
+                  SCHRAG_NONMOTOR_v2 =SCHRAG_NONMOTOR_v2 *(100/160),
+                  SCHRAG_EMOTIONAL_v2=SCHRAG_EMOTIONAL_v2*(100/160))
+
 BaselineDem <- BaselineDem %>% inner_join(SCHRAG) 
+
+range(SCHRAG$SCHRAG_MOTOR_v2)
+range(SCHRAG$SCHRAG_NONMOTOR_v2)
+range(SCHRAG$SCHRAG_EMOTIONAL_v2)
 
 
 pats_to_match <- pats_to_match %>% select(-c(date_visite, annee_naissance, AMS_date_diag_an, UMSARS1_total, UMSARS2_total, QOL_AMS_echelle_anal))
@@ -1183,10 +1220,10 @@ match_results %>% group_by(matched_to, num_patient) %>%
   inner_join(controls_2plus_visits) %>%
   group_by(num_patient) %>% filter(DATECONSULT==first) %>%
   ungroup() %>%
-    summarise(mean=mean(QOL_AMS_total        ), se=sd(QOL_AMS_total        ),
-            median=median(QOL_AMS_total        ),
-            q25=quantile(QOL_AMS_total        , 0.25),
-            q75=quantile(QOL_AMS_total        , 0.75))
+    summarise(mean=mean(SCHRAG_EMOTIONAL_v2  ), se=sd(SCHRAG_EMOTIONAL_v2  ),
+            median=median(SCHRAG_EMOTIONAL_v2           ),
+            q25=quantile(SCHRAG_EMOTIONAL_v2           , 0.25),
+            q75=quantile(SCHRAG_EMOTIONAL_v2           , 0.75))
 
 
 match_results %>% group_by(matched_to, num_patient) %>%
@@ -1579,7 +1616,12 @@ UMSARS %>% filter(num_visite=="V0"|num_visite=="V2") %>%
 
 
 QOL_AMS <- read_excel(path = "data/BDD_ETP_AMS_7122023.xlsx", sheet="QOL_AMS")
-QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% select(num_patient, num_visite, QOL_AMS_total, Motor, Non_Motor, Emotional)
+QOL_AMS <- QOL_AMS %>% filter(QOL_AMS_realise==1) %>% 
+  select(num_patient, num_visite, QOL_AMS_total, Motor, Non_Motor, Emotional) %>%
+  mutate(QOL_AMS_total=QOL_AMS_total*(100/160),
+         Motor=Motor*(100/160),
+         Non_Motor=Non_Motor*(100/160),
+         Emotional=Emotional*(100/160))
 
 
 
@@ -1687,8 +1729,8 @@ QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>%
 
 QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>%
       filter(num_patient!=1&num_patient!=2&num_patient!=8) %>%
-  select(num_patient, num_visite, Non_Motor) %>%
-  spread(key=num_visite, value=Non_Motor ) %>% 
+  select(num_patient, num_visite, Motor) %>%
+  spread(key=num_visite, value=Motor ) %>% 
   drop_na() %>% mutate(delta=V2-V0) %>% select(-c(V0, V2)) %>% 
   mutate(group="TEP") %>% ungroup() %>% select(-num_patient)  %>%
    summarise(mean=mean(delta), se=sd(delta),
@@ -1699,8 +1741,8 @@ QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>%
 #  mean    se median   q25   q75
 # 1 0.462  11.8      4    -6     6
 
-filtered %>% select(matched_to, num_patient, SCHRAG_NONMOTOR_v2   ,visite  ) %>%
-  spread(key=visite, value=SCHRAG_NONMOTOR_v2   ) %>% drop_na() %>%
+filtered %>% select(matched_to, num_patient, SCHRAG_MOTOR_v2   ,visite  ) %>%
+  spread(key=visite, value=SCHRAG_MOTOR_v2   ) %>% drop_na() %>%
   mutate(delta=`2`-`1`) %>% select(-c(`1`, `2`)) %>% ungroup() %>%
   group_by(matched_to) %>% sample_n(3, replace=T) %>% ungroup() %>%
   mutate(group="Control") %>% select(-c(matched_to, num_patient)) %>%
@@ -1715,13 +1757,13 @@ filtered %>% select(matched_to, num_patient, SCHRAG_NONMOTOR_v2   ,visite  ) %>%
 
 tep_table <-  QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>% 
       filter(num_patient!=1&num_patient!=2&num_patient!=8) %>%
-    select(num_patient, num_visite, Non_Motor) %>%
-  spread(key=num_visite, value=Non_Motor) %>%
+    select(num_patient, num_visite, Motor) %>%
+  spread(key=num_visite, value=Motor) %>%
   drop_na() %>% mutate(delta=V2-V0) %>% select(-c(V0, V2)) %>% 
   mutate(group="TEP") %>% ungroup()
 
-control_table <- filtered %>% select(matched_to, num_patient, SCHRAG_NONMOTOR_v2,visite  ) %>%
-  spread(key=visite, value=SCHRAG_NONMOTOR_v2) %>% drop_na() %>%
+control_table <- filtered %>% select(matched_to, num_patient, SCHRAG_MOTOR_v2,visite  ) %>%
+  spread(key=visite, value=SCHRAG_MOTOR_v2) %>% drop_na() %>%
   mutate(delta=`2`-`1`) %>% select(-c(`1`, `2`)) %>% ungroup() %>%
   group_by(matched_to) %>% sample_n(3, replace=T) %>% ungroup() %>%
   mutate(group="Control") 
@@ -1747,13 +1789,13 @@ wilcox.test(merged_data$delta, merged_data$mean_delta_control, paired = TRUE,
 
 QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>% 
       filter(num_patient!=1&num_patient!=2&num_patient!=8) %>%
-      select(num_patient, num_visite, Non_Motor) %>%
-  spread(key=num_visite, value=Non_Motor) %>%
+      select(num_patient, num_visite, Motor) %>%
+  spread(key=num_visite, value=Motor) %>%
   drop_na() %>% mutate(delta=V2-V0) %>% select(-c(V0, V2)) %>% 
   mutate(group="TEP") %>% ungroup() %>% select(-num_patient)  %>%
   bind_rows(
-    filtered %>% select(matched_to, num_patient, SCHRAG_NONMOTOR_v2,visite  ) %>%
-  spread(key=visite, value=SCHRAG_NONMOTOR_v2) %>% drop_na() %>%
+    filtered %>% select(matched_to, num_patient, SCHRAG_MOTOR_v2,visite  ) %>%
+  spread(key=visite, value=SCHRAG_MOTOR_v2) %>% drop_na() %>%
   mutate(delta=`2`-`1`) %>% select(-c(`1`, `2`)) %>% ungroup() %>%
   group_by(matched_to) %>% sample_n(3, replace=T) %>% ungroup() %>%
   mutate(group="Control") %>% select(-c(matched_to, num_patient))
@@ -1778,7 +1820,7 @@ QOL_AMS %>% filter(num_visite=="V0"|num_visite=="V2") %>%
   scale_color_manual(values=c("#bf4438", "#333652")) +
   scale_fill_manual(values=c("#bf4438", "#333652")) +
   xlab("\n Group Intervention") +
-  ylab("Delta MSA QoL Non-motor \n [12 months] \n") +
+  ylab("Delta MSA QoL Motor \n [12 months] \n") +
    geom_hline(yintercept=0)
 
 
@@ -1955,7 +1997,7 @@ df %>%
    geom_text(aes(label = scales::percent(perc, accuracy = 1)),
             position = position_stack(vjust = 0.5),
             size = 3,
-            color = "white") +
+            color = "black") +
   coord_flip() +
   scale_y_continuous(labels = scales::percent) +
   labs(
@@ -1964,8 +2006,8 @@ df %>%
     y = "\n Percentage",
     fill = "Score"
   ) +
-  scale_fill_manual(values=c( "#34495e", "#1b2631")) +
-  scale_colour_manual(values=c( "#34495e", "#1b2631")) +
+  scale_fill_manual(values=c( "#dcedc1", "#ff8b94")) +
+  scale_colour_manual(values=c( "#dcedc1", "#ff8b94")) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "right") +
@@ -1990,7 +2032,7 @@ df %>%
   geom_text(aes(label = scales::percent(perc, accuracy = 1)),
             position = position_stack(vjust = 0.5),
             size = 3,
-            color = "white") +
+            color = "black") +
   coord_flip() +
   scale_y_continuous(labels = scales::percent) +
   labs(
@@ -1999,8 +2041,8 @@ df %>%
     y = "\n Percentage",
     fill = "Score"
   ) +
-   scale_fill_manual(values=c("#d6dbdf", "#34495e", "#1b2631")) +
-  scale_colour_manual(values=c("#d6dbdf", "#34495e", "#1b2631")) +
+   scale_fill_manual(values=c("#ffd3b6", "#dcedc1", "#ff8b94")) +
+  scale_colour_manual(values=c("#ffd3b6", "#dcedc1", "#ff8b94")) +
    theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "right") +
