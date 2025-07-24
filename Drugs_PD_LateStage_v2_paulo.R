@@ -707,6 +707,95 @@ fwrite(exportignore, "exportignore.csv")
 
 
 
+
+
+
+
+
+
+
+
+
+to_compare_groups <- xxx %>% select(`pat_code_anonyme...1`, dyskinesie:Group) %>% rename("pat_code_anonyme"="pat_code_anonyme...1") %>%
+  left_join(
+    Pats_2_visits %>%
+  left_join(data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y")))) %>%
+    select(pat_code_anonyme, act_datedeb, pat_ddn_a)
+  ) %>% group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup()
+
+to_compare_groups <- to_compare_groups %>%
+  mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
+  mutate(age=year-pat_ddn_a)
+
+
+
+
+# Load necessary libraries
+library(dplyr)
+library(broom)
+
+to_compare_groups$Group <- relevel(factor(to_compare_groups$Group), ref = "none")
+
+# Vector of symptom column names
+symptom_cols <- c("dyskinesie", "douleur", "dysarthrie", "chute_instab", "freezing",
+                  "somnolence", "deform_post", "tr_degl", "chute", "fatigue",
+                  "rbd", "sas", "sjsr", "hypotension", "apathie", "depression",
+                  "anxiete", "halluc_psy", "tci", "punding", "tr_cognitif")
+
+# Loop over symptoms and run linear model
+results <- lapply(symptom_cols, function(symptom) {
+  formula <- as.formula(paste(symptom, "~ Group + age"))
+  model <- lm(formula, data = to_compare_groups)
+  tidy(model) %>%
+    filter(term != "(Intercept)") %>%
+    mutate(symptom = symptom)
+})
+
+# Combine all results
+results_df <- bind_rows(results)
+
+# Optional: filter to show only the effect of Group
+group_effects <- results_df %>%
+  filter(grepl("Group", term)) %>%
+  select(symptom, term, estimate, std.error, statistic, p.value)
+
+# View results
+data.frame(print(group_effects))
+
+
+
+
+plot <- to_compare_groups %>% 
+  group_by(age, Group) %>% count() %>%
+  ungroup() %>% rename("num"="n") %>%
+  group_by(age) %>% mutate(tot=sum(num)) %>%
+  mutate(perc=num/tot) %>% select(-num,-tot) %>%
+  ungroup() %>%
+  spread(key=Group, value=perc) %>%
+  mutate(none=ifelse(is.na(none),0,none)) %>%
+  mutate(Combo=ifelse(is.na(Combo),0,Combo)) %>%
+  mutate(LDonly=ifelse(is.na(LDonly),0,LDonly)) %>%
+  gather(Group, Exp, none:LDonly) %>%
+  mutate(Group=ifelse(Group=="none", "NO Levodopa",
+                      ifelse(Group=="Combo", "Levodopa Combination", "Levodopa Mono" ))) %>%
+  ggplot(aes(age, Exp, fill=Group, colour=Group)) +
+  geom_smooth(se=F, linewidth=2) +
+  coord_cartesian(ylim=c(0,1)) +
+  theme_minimal() +
+  ylab("Proportion ON each group \n") + xlab("\n Cross sectional age") +
+  scale_colour_manual(values=c( "#da291c", "#005eb8", "#f5e400"))
+
+
+svg("my_plot.svg", width = 7, height = 5)  # Width and height in inches
+print(plot)
+dev.off()
+
+
+
+
+
+
+
 # ignore <- ignore %>% 
 #   mutate(G1=ifelse(B==1,1,0)) %>%
 #   mutate(G4=ifelse(TO==1&SCP==1,1,0)) %>%
