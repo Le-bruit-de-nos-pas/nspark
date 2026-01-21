@@ -299,7 +299,29 @@ Pats_2_visits <- Pats_2_visits %>% count() %>% filter(n==2) %>% select(pat_code_
 
 data_late <- data_late %>% mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m/%Y")) 
 
-data_late <- Pats_2_visits %>% ungroup() %>% left_join(data_late)
+# data_late <- Pats_2_visits %>% ungroup() %>% left_join(data_late)
+
+
+
+data_late %>% group_by(pat_code_anonyme) %>% mutate(VISIT=row_number()) %>%
+  select(pat_code_anonyme, VISIT, ttt_ledd_totale) %>%
+   filter(ttt_ledd_totale<4000 & ttt_ledd_totale>0) %>% ungroup() %>%
+  group_by(VISIT) %>%
+  summarise(mean=mean(ttt_ledd_totale), sd=sd(ttt_ledd_totale))
+
+
+
+data_late %>% group_by(pat_code_anonyme) %>% mutate(VISIT=row_number()) %>%
+  select(pat_code_anonyme, VISIT, ttt_levodopa_mg) %>%
+   filter(ttt_levodopa_mg<4000 & ttt_levodopa_mg>0) %>% ungroup() %>%
+  group_by(VISIT) %>%
+  summarise(mean=mean(ttt_levodopa_mg), sd=sd(ttt_levodopa_mg))
+
+
+data_late %>% group_by(pat_code_anonyme) %>% mutate(VISIT=row_number()) %>%
+  select(pat_code_anonyme, VISIT, hoehn_yahr_on) %>%
+  group_by(VISIT, hoehn_yahr_on) %>% count()
+
 
 
 #data_late <- data_late %>% group_by(pat_code_anonyme) %>% mutate(act_datedeb=as.Date(act_datedeb)) %>%
@@ -572,7 +594,76 @@ df_complet <- df_complet[ ,names(df_complet) %in% c("X","pat_code_anonyme","A","
 length(unique(df_complet$pat_code_anonyme)) 
 
 
-df_complet %>% left_join(Pats_2_visits)
+
+pats_on_antiparkison <- df_complet %>% group_by(pat_code_anonyme) %>% slice(1) %>%
+  filter(TO==1|SCP==1|LGI==1|ASC==1) %>% select(pat_code_anonyme) %>%
+  distinct() %>% ungroup()
+
+
+df_complet <- df_complet %>% inner_join(pats_on_antiparkison)
+
+Pats_2_visits <- Pats_2_visits %>% inner_join(pats_on_antiparkison)
+
+
+
+df_complet_first <-  df_complet  %>% group_by(pat_code_anonyme) %>% slice(1) %>% ungroup()
+
+
+
+
+
+
+
+ignore <- df_complet_first %>%
+  mutate(Other=A+C+D+E) %>%
+      mutate(Group=ifelse(B==1&Other==0, "LDonly",
+                          ifelse(B==1&Other!=0, "Combo", "none"))) %>%
+  left_join(data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y")))) %>%
+  select(pat_code_anonyme, act_datedeb, Group,  fluct_motrice, dyskinesie, douleur, nociceptive, neuropathique, dysarthrie, chute_instab,
+                   freezing, deform_post, tr_degl, chute, somnolence, insomnie, fatigue, rbd,sas,sjsr,
+         hypotension, digestif, urine, poids, apathie, depression, anxiete, halluc_psy, tci, punding, tr_cognitif)
+
+
+
+ignore <- ignore %>% select(pat_code_anonyme, act_datedeb) %>%
+  bind_cols(
+    ignore %>% select(-pat_code_anonyme, -act_datedeb) %>%
+  mutate(across(everything(), ~ ifelse(. == ">=2", "2", .))) %>%
+  mutate(across(everything(), ~ ifelse(. == "Oui", "1", .))) %>%
+  mutate(across(everything(), ~ ifelse(. == "Non", "0", .))) )
+
+  
+
+ignore <- ignore %>% mutate(across(fluct_motrice:tr_cognitif , as.numeric))
+
+ignore_first <- ignore %>% group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% distinct() 
+
+vars <- c(
+  "fluct_motrice", "dyskinesie", "douleur", "nociceptive", "neuropathique",
+  "dysarthrie", "chute_instab", "freezing", "deform_post", "tr_degl",
+  "chute", "somnolence", "insomnie", "fatigue", "rbd", "sas", "sjsr",
+  "hypotension", "digestif", "urine", "poids", "apathie", "depression",
+  "anxiete", "halluc_psy", "tci", "punding", "tr_cognitif"
+)
+
+
+mean_scores <- ignore_first %>% ungroup() %>%
+  mutate(
+    across(all_of(vars), ~ ifelse(. >= 3, 1, 0))
+  ) %>%
+  summarise(
+    across(all_of(vars), ~ sum(. , na.rm = TRUE))
+  )
+
+mean_scores
+
+
+
+
+
+
+
+
 
 ignore <- Pats_2_visits %>%
   left_join(data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y")))) %>%
@@ -587,6 +678,30 @@ ignore <- ignore %>%
   mutate(across(everything(), ~ ifelse(. == "Non", "0", .)))
 
 ignore <- ignore %>% mutate(across(dyskinesie:tr_cognitif , as.numeric))
+
+
+vars <- c(
+  "fluct_motrice", "dyskinesie", "douleur", "nociceptive", "neuropathique",
+  "dysarthrie", "chute_instab", "freezing", "deform_post", "tr_degl",
+  "chute", "somnolence", "insomnie", "fatigue", "rbd", "sas", "sjsr",
+  "hypotension", "digestif", "urine", "poids", "apathie", "depression",
+  "anxiete", "halluc_psy", "tci", "punding", "tr_cognitif"
+)
+
+
+mean_scores <- ignore %>%
+  mutate(
+    across(all_of(vars), ~ ifelse(. >= 3, 1, 0))
+  ) %>%
+  summarise(
+    across(all_of(vars), ~ mean(. , na.rm = TRUE))
+  )
+
+mean_scores
+
+
+
+
 
 ignore <- df_complet %>% group_by(pat_code_anonyme) %>%
   mutate(X=row_number()) %>% ungroup() %>% bind_cols(ignore) 
@@ -623,11 +738,12 @@ xxx <- ignore %>% select(-c(Nb_Autre, pat_code_anonyme...17))  %>%
 names(xxx)
 
 
-
+names(xxx)
 
 
 xxx %>% filter(X==1) %>%
-  select(pat_code_anonyme...1, Group) %>% group_by(Group) %>% count() %>% mutate(n2=n/539)
+  filter(TO==1|SCP==1|LGI==1|ASC==1) %>%
+  select(pat_code_anonyme...1, Group) %>% group_by(Group) %>% count() %>% mutate(n2=n/439)
 
 
 # Group      n    n2
@@ -710,26 +826,28 @@ data.frame(print(group_effects))
 
 
 
-
-plot <- to_compare_groups %>% 
+to_compare_groups %>%
+  filter(Group!="none") %>%
   group_by(age, Group) %>% count() %>%
   ungroup() %>% rename("num"="n") %>%
   group_by(age) %>% mutate(tot=sum(num)) %>%
   mutate(perc=num/tot) %>% select(-num,-tot) %>%
   ungroup() %>%
   spread(key=Group, value=perc) %>%
-  mutate(none=ifelse(is.na(none),0,none)) %>%
+  #mutate(none=ifelse(is.na(none),0,none)) %>%
   mutate(Combo=ifelse(is.na(Combo),0,Combo)) %>%
   mutate(LDonly=ifelse(is.na(LDonly),0,LDonly)) %>%
-  gather(Group, Exp, none:LDonly) %>%
+  #gather(Group, Exp, none:LDonly) %>%
+  gather(Group, Exp, Combo:LDonly) %>%
   mutate(Group=ifelse(Group=="none", "NO Levodopa",
                       ifelse(Group=="Combo", "Levodopa Combination", "Levodopa Mono" ))) %>%
   ggplot(aes(age, Exp, fill=Group, colour=Group)) +
   geom_smooth(se=F, linewidth=2) +
+  #  geom_smooth(  method = "gam", formula = y ~ s(x, k = 10),  se = FALSE,  linewidth = 1, alpha=0.5) +  
   coord_cartesian(ylim=c(0,1)) +
   theme_minimal() +
   ylab("Proportion ON each group \n") + xlab("\n Cross sectional age") +
-  scale_colour_manual(values=c( "#da291c", "#005eb8", "#f5e400"))
+  scale_colour_manual(values=c( "#da291c", "#005eb8"))
 
 
 svg("my_plot.svg", width = 7, height = 5)  # Width and height in inches
