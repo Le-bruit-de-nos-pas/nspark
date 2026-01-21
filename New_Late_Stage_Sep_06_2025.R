@@ -237,6 +237,19 @@ data_late <- data_late %>% mutate(act_datedeb=as.Date(act_datedeb, format="%d/%m
 
 
 
+data_late %>% group_by(pat_code_anonyme) %>% mutate(VISIT=row_number()) %>%
+  select(pat_code_anonyme, VISIT, ttt_ledd_totale, ttt_ledd_ago) %>%
+   filter(ttt_ledd_totale<4000 & ttt_ledd_totale>0) %>% ungroup() %>%
+  group_by(VISIT) %>%
+  summarise(mean=mean(ttt_ledd_totale-ttt_ledd_ago, na.rm=T), sd=sd(ttt_ledd_totale-ttt_ledd_ago, na.rm=T))
+
+
+
+data_late %>% group_by(pat_code_anonyme) %>% mutate(VISIT=row_number()) %>%
+  select(pat_code_anonyme, VISIT, ttt_levodopa_mg) %>%
+   filter(ttt_levodopa_mg<4000 & ttt_levodopa_mg>0) %>% ungroup() %>%
+  group_by(VISIT) %>%
+  summarise(mean=mean(ttt_levodopa_mg), sd=sd(ttt_levodopa_mg))
 
 
 
@@ -709,25 +722,28 @@ df_complet %>%
   ) %>% group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
     mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
   mutate(age=year-pat_ddn_a) %>%
+   filter(Group!="none") %>%
    group_by(age, Group) %>% count() %>%
   ungroup() %>% rename("num"="n") %>%
   group_by(age) %>% mutate(tot=sum(num)) %>%
   mutate(perc=num/tot) %>% select(-num,-tot) %>%
   ungroup() %>%
   spread(key=Group, value=perc) %>%
-  mutate(none=ifelse(is.na(none),0,none)) %>%
+ # mutate(none=ifelse(is.na(none),0,none)) %>%
   mutate(Combo=ifelse(is.na(Combo),0,Combo)) %>%
   mutate(LDonly=ifelse(is.na(LDonly),0,LDonly)) %>%
-  gather(Group, Exp, Combo:none) %>%
+  gather(Group, Exp, Combo:LDonly) %>%
   mutate(Group=ifelse(Group=="none", "NO Levodopa",
                       ifelse(Group=="Combo", "Levodopa Combination", "Levodopa Mono" ))) %>%
+   filter(Group!="NO Levodopa") %>%
   ggplot(aes(age, Exp, fill=Group, colour=Group)) +
-  #geom_smooth(  method = "gam", formula = y ~ s(x, k = 10),  se = FALSE,  linewidth = 1, alpha=0.5) +  
-  geom_smooth(se = FALSE,  linewidth = 1, alpha=0.5) +
+  geom_smooth(  method = "gam", formula = y ~ s(x, k = 5),  se = T,  linewidth = 2, alpha=0.5) +  
+  #geom_smooth(se = FALSE,  linewidth = 1, alpha=0.5) +
    coord_cartesian(ylim=c(0,1)) +
   theme_minimal() +
   ylab("Proportion ON each group \n") + xlab("\n Cross sectional age") +
-  scale_colour_manual(values=c( "#da291c", "#005eb8", "#f5e400"))
+  scale_colour_manual(values=c( "#da291c", "#005eb8")) +
+   scale_fill_manual(values=c( "#da291c", "#005eb8")) 
 
  
   
@@ -755,8 +771,32 @@ ignore <- ignore %>% select(pat_code_anonyme, act_datedeb) %>%
 
 ignore <- ignore %>% mutate(across(fluct_motrice:tr_cognitif , as.numeric))
 
+ignore_first <- ignore %>% group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% distinct() 
+
+vars <- c(
+  "fluct_motrice", "dyskinesie", "douleur", "nociceptive", "neuropathique",
+  "dysarthrie", "chute_instab", "freezing", "deform_post", "tr_degl",
+  "chute", "somnolence", "insomnie", "fatigue", "rbd", "sas", "sjsr",
+  "hypotension", "digestif", "urine", "poids", "apathie", "depression",
+  "anxiete", "halluc_psy", "tci", "punding", "tr_cognitif"
+)
+
+
+mean_scores <- ignore_first %>% ungroup() %>%
+  mutate(
+    across(all_of(vars), ~ ifelse(. >= 3, 1, 0))
+  ) %>%
+  summarise(
+    across(all_of(vars), ~ sum(. , na.rm = TRUE))
+  )
+
+mean_scores
+
+
+
 
 library(dplyr)
+
 library(tidyr)
 library(rstatix)   # for kruskal_test + dunn_test
 
@@ -764,7 +804,7 @@ library(rstatix)   # for kruskal_test + dunn_test
 ignore <- ignore %>% inner_join(Pats_2_visits) %>%
   arrange(pat_code_anonyme) %>% group_by(pat_code_anonyme) %>%
   mutate(VISIT=row_number()) %>%
-  filter(VISIT<=2)
+  filter(VISIT<=1)
 
 
 # Reshape to long format
@@ -827,3 +867,239 @@ fwrite(final_results, "final_results_Late_Stage_PD_Sep_10.csv")
 
 
 
+
+
+
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, pat_ddn_a)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#     mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
+#   mutate(age=year-pat_ddn_a) %>%
+#   group_by(Group) %>%  # count()
+#   summarise(mean=mean(age), sd=sd(age))
+#   
+# 
+# test_df <- med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, pat_ddn_a)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#     mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
+#   mutate(age=year-pat_ddn_a) %>%
+#   select(age, Group)
+# 
+# 
+# kruskal.test(age ~ Group, data = test_df)
+# 
+# 
+# 
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, diag_date_a)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#     mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
+#   mutate(diag=year-as.numeric(diag_date_a)) %>%
+#   group_by(Group) %>%  # count()
+#   summarise(mean=mean(diag), sd=sd(diag))
+#   
+# 
+# 
+# test_df <- med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, diag_date_a)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#     mutate(year=as.character(act_datedeb)) %>% mutate(year=as.numeric(str_sub(year, 1L,4L))) %>%
+#   mutate(diag=year-as.numeric(diag_date_a))  %>%
+#   select(diag, Group)
+# 
+# 
+# kruskal.test(diag ~ Group, data = test_df)
+# 
+# 
+# 
+# 
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, ttt_ledd_totale)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#  mutate(ttt_ledd_totale=as.numeric(ttt_ledd_totale)) %>% filter(ttt_ledd_totale<10000 & ttt_ledd_totale>10) %>%
+#   group_by(Group) %>%  # count()
+#   summarise(mean=mean(ttt_ledd_totale), sd=sd(ttt_ledd_totale))
+#   
+# 
+# 
+# test_df <-
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, ttt_ledd_totale)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#  mutate(ttt_ledd_totale=as.numeric(ttt_ledd_totale)) %>% filter(ttt_ledd_totale<10000 & ttt_ledd_totale>10)  %>%
+#   select(ttt_ledd_totale, Group)
+# 
+# 
+# kruskal.test(ttt_ledd_totale ~ Group, data = test_df)
+# 
+# 
+# 
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, hoehn_yahr_on)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#   group_by(Group, hoehn_yahr_on) %>%  count()
+#   
+# 
+# 
+# test_df <-
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, hoehn_yahr_on)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup()   %>%
+#   select(hoehn_yahr_on, Group) %>% mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on))
+# 
+# 
+# fisher.test(table(test_df$hoehn_yahr_on, test_df$Group))
+# 
+# 
+# 
+# 
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, pat_sexe)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup() %>%
+#   group_by(Group, pat_sexe) %>% drop_na() %>%  count()
+# 
+#   
+# 
+# test_df <- med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb, pat_sexe)
+#                            ) %>%
+#  group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb)) %>% slice(1) %>% ungroup()  %>%
+#   select(pat_sexe, Group) %>% drop_na()
+# 
+# 
+# chisq.test(table(test_df$pat_sexe, test_df$Group))
+# 
+# 
+# 
+# 
+# ignore <- med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none"))) %>%
+#   left_join(data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>% group_by(pat_code_anonyme) %>% filter(act_datedeb==min(act_datedeb))) %>%
+#   select(pat_code_anonyme, act_datedeb, Group,  fluct_motrice, dyskinesie, douleur, nociceptive, neuropathique, dysarthrie, chute_instab,
+#                    freezing, deform_post, tr_degl, chute, somnolence, insomnie, fatigue, rbd,sas,sjsr,
+#          hypotension, digestif, urine, poids, apathie, depression, anxiete, halluc_psy, tci, punding, tr_cognitif)
+# 
+# 
+# 
+# ignore <- ignore %>% select(pat_code_anonyme, act_datedeb) %>%
+#   bind_cols(
+#     ignore %>% select(-pat_code_anonyme, -act_datedeb) %>%
+#   mutate(across(everything(), ~ ifelse(. == ">=2", "2", .))) %>%
+#   mutate(across(everything(), ~ ifelse(. == "Oui", "1", .))) %>%
+#   mutate(across(everything(), ~ ifelse(. == "Non", "0", .))) )
+# 
+#   
+# 
+# ignore <- ignore %>% mutate(across(fluct_motrice:tr_cognitif , as.numeric))
+# 
+# 
+# library(dplyr)
+# library(tidyr)
+# library(rstatix)
+# 
+# symptom_vars <- c("fluct_motrice", "dyskinesie", "douleur", "nociceptive",
+#                   "neuropathique", "dysarthrie", "chute_instab", "freezing",
+#                   "deform_post", "tr_degl", "chute", "somnolence", "insomnie",
+#                   "fatigue", "rbd", "sas", "sjsr", "hypotension", "digestif",
+#                   "urine", "poids", "apathie", "depression", "anxiete",
+#                   "halluc_psy", "tci", "punding", "tr_cognitif")
+# 
+# # Prepare data and filter out untestable variables
+# kw_results <- ignore %>%
+#   select(Group, all_of(symptom_vars)) %>%
+#   pivot_longer(-Group, names_to = "Symptom", values_to = "Score") %>%
+#   group_by(Symptom) %>%
+#   # Only keep symptoms with ≥2 groups and >1 unique value
+#   filter(n_distinct(Group[!is.na(Score)]) > 1,
+#          n_distinct(Score[!is.na(Score)]) > 1) %>%
+#   kruskal_test(Score ~ Group) %>%
+#   adjust_pvalue(method = "bonferroni") %>%
+#   add_significance("p.adj")
+# 
+# data.frame(kw_results)
+# 
+# 
+# 
+# 
+# med %>%
+#   mutate(Other=A+C+D+E) %>%
+#       mutate(Group=ifelse(B==1&Other==0, "LDonly",
+#                           ifelse(B==1&Other!=0, "Combo", "none")))  %>%
+#       left_join(
+#         data_hy %>% mutate(act_datedeb=as.Date(act_datedeb, format=("%d/%m/%Y"))) %>%
+#                              select(pat_code_anonyme, act_datedeb)
+#                            ) %>%
+#   select(pat_code_anonyme, act_datedeb, Group) %>%
+#   ggplot(aes(act_datedeb, colour=Group, fill=Group)) +
+#   geom_density(alpha=0.5) +
+#   theme_minimal() +
+#   xlab("Visit date") + ylab("Patient density") +
+#   scale_color_viridis_d() +
+#   scale_fill_viridis_d() 
