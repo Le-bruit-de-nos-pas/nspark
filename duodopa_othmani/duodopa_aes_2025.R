@@ -281,7 +281,7 @@ df <- data.frame(aes %>% inner_join(general %>% select(patient_id, date_duodopa_
     mutate(diff=lubridate::interval(date_duodopa_start, visit_date)%/% months(1)) %>%
      mutate(visit=ifelse(visit=="T 20","T20", visit)) %>%
   select(-visit_date, -date_duodopa_start, -visit )) %>% 
-  drop_na() %>% filter(diff>0) %>% group_by(patient_id, adverse_effect) %>% summarise(diff=min(diff)) %>% ungroup()
+  drop_na() %>% filter(diff>(0)) %>% group_by(patient_id, adverse_effect) %>% summarise(diff=min(diff)) %>% ungroup()
  
 
 # Step 1: Get all unique patients and all unique adverse effects
@@ -376,6 +376,7 @@ cumulative_df <- first_events %>%
 
 
 
+
 cumulative_df_complete <- cumulative_df %>%
   group_by(adverse_effect) %>%
   complete(first_time = full_seq(first_time, 1), fill = list(new_cases = 0)) %>%
@@ -424,26 +425,44 @@ cool_colors <- c(
   "#8c564b",  # brown
   "#e377c2",  # pink
   "#7f7f7f",  # gray
-  "#bcbd22",  # olive
-  "#17becf",  # cyan
-  "#aec7e8",  # light blue
-  "#ffbb78",  # light orange
-  "#98df8a",  # light green
-  "#c5b0d5"   # light purple
+  "#bcbd22" # olive
+ 
+
 )
 
 
-plot <- ggplot(cumulative_df_complete, aes(x = first_time, y = cumulative_cases/122, color = factor(adverse_effect_label))) +
+
+plot <- cumulative_df_complete %>% filter(adverse_effect  != 11 & adverse_effect  != 12 &
+                                    adverse_effect  != 13 & adverse_effect  != 14 & adverse_effect  != 15 ) %>%
+  ggplot(aes(x = first_time, y = cumulative_cases/122, color = factor(adverse_effect_label  ))) +
   geom_line(size = 2, alpha=0.7) +
     scale_color_manual(values = cool_colors) +
   labs(
-    title = "De novo Cumulative Proportion of Patients with Adverse Effects Over Time",
-    x = "Time Since Duodopa Start (months)",
-    y = "De novo Cumulative Proportion of Patients",
+    title = "Cumulative cohort proportion \n",
+    x = "\n Time Since Duodopa Start (months)",
+    y = "De novo Cumulative Proportion of Patients \n",
     color = "Adverse Effect"
   ) +
   theme_minimal() +
-  theme(legend.position = "right")
+  theme(legend.position = "right")  +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "right") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12, vjust = -0.5),
+        axis.title.y = element_text(size = 12, vjust = -0.5),
+        plot.margin = margin(5, 5, 5, 5, "pt")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+plot
 
 ggsave(filename = paste0("output/cumulative_plot", ".svg"), plot = plot, width = 8, height = 5, device = "svg")
 
