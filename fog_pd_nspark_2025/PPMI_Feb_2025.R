@@ -232,35 +232,66 @@ library(survival)
 library(survminer)
 
 
-km_fit <- survfit(Surv(elapsed , FRZGT1W  ) ~ LD_baseline   , data = data)
+
+data <- data %>% mutate(elapsed=elapsed/30.25)
+
+unique(data$LD_baseline)
+
+data <- data %>% rename("Baseline"="LD_baseline") %>%
+  mutate(Baseline=ifelse(Baseline=="no LD baseline", "w/o LD", "ON LD"))
+
+km_fit <- survfit(Surv(elapsed , FRZGT1W  ) ~ Baseline   , data = data)
 
 summary(km_fit)
 
 km_fit
 
-data %>% group_by(LD_baseline, FRZGT1W) %>% count()
+data %>% group_by(Baseline, FRZGT1W) %>% count()
+
+
+data %>% group_by(Baseline) %>% summarise(mean=mean(elapsed), sd =sd(elapsed))
+data %>% group_by(Baseline) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
 
 # 600x600
 
 # Step 3: Plot Kaplan-Meier curve
-ggsurvplot(km_fit, data = data, 
+plot <- ggsurvplot(km_fit, data = data, 
            pval = FALSE,          # Add p-value for log-rank test
            conf.int = TRUE,      # Add confidence interval
            #risk.table = TRUE,    # Add risk table to the plot
            palette = c("#CD3333", "#83CBEB"), # Example color palette
            ggtheme = theme_minimal(),
-           xlab=("\n Number of days From Baseline"),
+           xlab=("\n # months From Baseline"),
            ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
+
+
 
 # Step 4: Summary and log-rank test to compare the groups
 summary(km_fit)
 
 # Optional: If you want to do a formal comparison
-log_rank_test <- survdiff(Surv(elapsed , FRZGT1W ) ~ LD_baseline, data = data)
+log_rank_test <- survdiff(Surv(elapsed , FRZGT1W ) ~ Baseline, data = data)
 
 log_rank_test
 
-survdiff(Surv(elapsed , FRZGT1W ) ~ LD_baseline, data = data, rho = 1)  # Peto-Peto test
+survdiff(Surv(elapsed , FRZGT1W ) ~ Baseline, data = data, rho = 1)  # Peto-Peto test
 
 # Call:
 # survdiff(formula = Surv(elapsed, FRZGT1W) ~ LD_baseline, data = data, 
@@ -273,7 +304,7 @@ survdiff(Surv(elapsed , FRZGT1W ) ~ LD_baseline, data = data, rho = 1)  # Peto-P
 #  Chisq= 3.4  on 1 degrees of freedom, p= 0.07 
 
 
-coxph(Surv(elapsed, FRZGT1W) ~ LD_baseline, data = data)
+coxph(Surv(elapsed, FRZGT1W) ~ Baseline, data = data)
 
 # Call:
 # coxph(formula = Surv(elapsed, FRZGT1W) ~ LD_baseline, data = data)
@@ -418,6 +449,66 @@ summary(cox_model_td)
 survminer::ggforest(cox_model_td, data = data)
 
 
+forest_df <- data.frame(
+  term  = c("Baseline Levodopa (LD)", 
+            "H&Y Stage"),
+  HR    = c(2.38337, 1.78041),
+  lower = c(1.579, 1.466),   # <- if you have exact CI replace here
+  upper = c(3.596, 2.162),   # <- replace if needed
+  p     = c(3.54e-05, 4.76e-09)
+)
+
+forest_df <- forest_df %>%
+  mutate(
+    p_label = ifelse(p < 0.001,
+                     "p < 0.001",
+                     paste0("p = ", round(p, 3))),
+    label = paste0(
+      "HR ", round(HR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\n", p_label
+    )
+  )
+
+plot <- forest_df %>%
+  mutate(term=ifelse(term=="Baseline Levodopa (LD)", "ON Levodopa Baseline", "HY& +1")) %>%
+  
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ Baseline LD + H&Y",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
 
 
 
@@ -492,34 +583,71 @@ data <- data %>% mutate(Levodopa_EXP=ifelse(Levodopa_EXP==1, "Levodopa-experienc
 library(survival)
 library(survminer)
 
+data <- data %>% mutate(elapsed=elapsed/30.25)
 
-km_fit <- survfit(Surv(elapsed , FRZGT1W  ) ~ Levodopa_EXP   , data = data)
+
+
+unique(data$Levodopa_EXP)
+
+data <- data %>% rename("Exposure"="Levodopa_EXP") %>%
+  mutate(Exposure=ifelse(Exposure=="Levodopa-naive", "w/o LD", "Levodopa"))
+
+
+
+data %>% group_by(Exposure) %>% summarise(mean=mean(elapsed), sd =sd(elapsed))
+data %>% group_by(Exposure) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
+
+# 600x600
+
+km_fit <- survfit(Surv(elapsed , FRZGT1W  ) ~ Exposure   , data = data)
 
 summary(km_fit)
 
 km_fit
 
-data %>% group_by(Levodopa_EXP, FRZGT1W) %>% count()
+
+
+
+
 
 # Step 3: Plot Kaplan-Meier curve
-ggsurvplot(km_fit, data = data, 
+plot <- ggsurvplot(km_fit, data = data, 
            pval = TRUE,          # Add p-value for log-rank test
            conf.int = TRUE,      # Add confidence interval
            #risk.table = TRUE,    # Add risk table to the plot
            palette = c("#CD3333", "#83CBEB"), # Example color palette
            ggtheme = theme_minimal(),
-           xlab=("\n Number of days From Baseline"),
+           xlab=("\n # months From Baseline"),
            ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
+
+
 
 # Step 4: Summary and log-rank test to compare the groups
 summary(km_fit)
 
 # Optional: If you want to do a formal comparison
-log_rank_test <- survdiff(Surv(elapsed , FRZGT1W ) ~ Levodopa_EXP, data = data)
+log_rank_test <- survdiff(Surv(elapsed , FRZGT1W ) ~ Exposure, data = data)
 
 log_rank_test
 
-survdiff(Surv(elapsed , FRZGT1W ) ~ Levodopa_EXP, data = data, rho = 1)  # Peto-Peto test
+survdiff(Surv(elapsed , FRZGT1W ) ~ Exposure, data = data, rho = 1)  # Peto-Peto test
 
 # Call:
 # survdiff(formula = Surv(elapsed, FRZGT1W) ~ Levodopa_EXP, data = data, 
@@ -531,7 +659,7 @@ survdiff(Surv(elapsed , FRZGT1W ) ~ Levodopa_EXP, data = data, rho = 1)  # Peto-
 # 
 #  Chisq= 2.8  on 1 degrees of freedom, p= 0.1 
 #  
-coxph(Surv(elapsed, FRZGT1W) ~ Levodopa_EXP, data = data)
+coxph(Surv(elapsed, FRZGT1W) ~ Exposure, data = data)
 
 # Call:
 # coxph(formula = Surv(elapsed, FRZGT1W) ~ Levodopa_EXP, data = data)
@@ -674,6 +802,58 @@ summary(cox_model_td)
 
 survminer::ggforest(cox_model_td, data = data)
 
+
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Levodopa_EXP", "Levodopa Exposure", "HY& +1")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ H&Y + Future LD Exposure",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
 
 
 # ---------------
@@ -819,7 +999,68 @@ summary(cox_model_td)
 
 survminer::ggforest(cox_model_td, data = data)
 
+forest_df <- data.frame(
+  term  = c("Baseline Levodopa (LD)", 
+            "UPDRS-III ON score"),
+  HR    = c(3.023, 1.261),
+  lower = c(1.736, 1.173),
+  upper = c(5.264, 1.355),
+  p     = c(9.32e-05, 3.43e-10)
+)
 
+
+forest_df <- forest_df %>%
+  mutate(
+    p_label = ifelse(p < 0.001, 
+                     "p < 0.001", 
+                     paste0("p = ", round(p, 3))),
+    label = paste0(
+      "HR ", round(HR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\n", p_label
+    )
+  )
+
+
+
+plot <- forest_df %>%
+  mutate(term=ifelse(term=="Baseline Levodopa (LD)", "ON Levodopa Baseline", "MDS-UPDRS III (+10p)")) %>%
+  
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ Baseline LD + MDS-UPDRS III",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
 
 
 
@@ -973,6 +1214,60 @@ survminer::ggforest(cox_model_td, data = data)
 
 
 
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Levodopa_EXP", "Levodopa Exposure", "MDS-UPDRS III (+10p)")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ MDS-UPDRS III + Future LD Exposure",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
 # ---------------
 # All patient visits ----------------
 # Curated Data
@@ -1103,7 +1398,9 @@ PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %
   mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
 
 
-PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(Contains_Levodopa, FRZGT1W) %>% count() %>%
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2,FRZGT1W)) 
+
+PPMI_Curated_Data_Cut_Public_20241211 %>%  group_by(Contains_Levodopa, FRZGT1W) %>% count() %>%
   drop_na() %>% ungroup() %>% group_by(Contains_Levodopa) %>% mutate(tot=sum(n)) %>%
   mutate(perc=n/tot)
 
@@ -1124,20 +1421,18 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2933 -2208.04 4426.07 6(0)  5.13e-09 3.2e+03
+#  logit flexible  2933 -1887.95 3781.91 6(0)  6.93e-10 9.1e+02
 # 
 # Coefficients:
 #                  Estimate Std. Error z value Pr(>|z|)    
-# disease_duration  0.22251    0.01118   19.91   <2e-16 ***
+# disease_duration  0.22229    0.01125   19.75   <2e-16 ***
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1   2.6961     0.1019   26.46
-# 1|2   3.5296     0.1116   31.61
-# 2|3   4.6656     0.1319   35.36
-# 3|4   6.7824     0.2481   27.34
+# 0|1   2.6949     0.1023   26.34
+# 1|2   3.5289     0.1120   31.50
 
 
 test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(FRZGT1W, Contains_Levodopa) %>% 
@@ -1153,19 +1448,16 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2934 -2444.48 4898.97 8(0)  6.44e-12 8.0e+01
+#  logit flexible  2934 -2122.66 4251.31 7(0)  2.19e-07 5.7e+01
 # 
 # Coefficients:
 #                               Estimate Std. Error z value Pr(>|z|)
-# as.factor(Contains_Levodopa)1   0.1087     0.1963   0.554     0.58
+# as.factor(Contains_Levodopa)1   0.1237     0.1972   0.627    0.531
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1  1.13587    0.04405   25.79
-# 1|2  1.86595    0.05498   33.94
-# 2|3  2.91948    0.08418   34.68
-# 3|4  4.98701    0.22460   22.20
-
+# 0|1  1.13655    0.04405   25.80
+# 1|2  1.86658    0.05497   33.96
 
 
 PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(hy_on, FRZGT1W) %>% count() %>%
@@ -1186,45 +1478,40 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2788 -2118.50 4250.99 7(0)  1.22e-11 3.3e+03
+#  logit flexible  2788 -1828.17 3666.35 6(0)  1.05e-08 2.3e+03
 # 
 # Coefficients:
 #                   Estimate Std. Error z value Pr(>|z|)    
-# as.factor(hy_on)1  -0.7163     0.6511  -1.100 0.271307    
-# as.factor(hy_on)2   0.2841     0.6330   0.449 0.653580    
-# as.factor(hy_on)3   2.4208     0.6408   3.778 0.000158 ***
+# as.factor(hy_on)1  -0.7273     0.6521  -1.115 0.264681    
+# as.factor(hy_on)2   0.2754     0.6340   0.434 0.664027    
+# as.factor(hy_on)3   2.3739     0.6422   3.696 0.000219 ***
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1   1.5811     0.6308   2.507
-# 1|2   2.4267     0.6321   3.839
-# 2|3   3.6125     0.6364   5.676
-# 3|4   5.8548     0.6764   8.655
+# 0|1   1.5705     0.6317   2.486
+# 1|2   2.4173     0.6332   3.818
 
 
 
 
 
-PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(disease_duration , FRZGT1W ) %>% count() %>%
+plot <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(disease_duration , FRZGT1W ) %>% count() %>%
   drop_na() %>%
   spread(key=FRZGT1W, value=n) %>%
   mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
   mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
   mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
-  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
-  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
   mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot)  %>% ungroup() %>%
-  gather(FOG, value, `0`:`4`) %>%
+  ungroup() %>%
+  gather(FOG, value, `0`:`2`) %>%
   ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
   geom_smooth(se=F, size=2, alpha=0.5) +
-  theme(axis.text.y = element_blank(),
+ theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "right") +
   theme(panel.background = element_blank(),
@@ -1233,15 +1520,19 @@ PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(disease_duration , FRZGT1W ) 
         strip.background = element_blank(),
         strip.text = element_blank(),
         axis.line = element_blank(),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 12, vjust = -0.5),
-        axis.title.y = element_text(size = 12, vjust = -0.5),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.title.y = element_text(size = 14, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt"))  +
+  theme(text = element_text(face = "bold")) +
   ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
-  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+  scale_colour_manual(values=c("#7F7F7F",  "#82CBEB",  "#2F5597")) 
 
 
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 4, height = 4)
 
 
 test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(FRZGT1W, hy_on, Contains_Levodopa, disease_duration) %>% 
@@ -1724,6 +2015,241 @@ summary(model_lmm)
 
 # --------
 
+# All patient visits - ordered logistic regression all cofounders -----
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on
+
+# PPMI patients 
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 3866
+
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+
+
+#  PD only
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(COHORT) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+  
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1441
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, updrs3_score_on, hy_on, EVENT_ID )
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(LEDTRT) %>% distinct()
+
+# fwrite(Levodopa_lookups, "Levodopa_lookups.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDTRT, STARTDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% group_by(PATNO, STARTDT) %>% summarise(Contains_Levodopa=max(Contains_Levodopa))
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa==1) %>% ungroup() 
+
+
+# Freezing
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- fread("Medical/Determination_of_Freezing_and_Falls_12Feb2025.csv")
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- Determination_of_Freezing_and_Falls_12Feb2025 %>% 
+  select(PATNO, PATNO, EVENT_ID,  INFODT , FRZGT12M , FRZGT1W)
+
+Determination_of_Freezing_and_Falls_12Feb2025$PATNO <- as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$PATNO)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(Determination_of_Freezing_and_Falls_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="INFODT", "EVENT_ID"="EVENT_ID"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c( FRZGT12M)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>% 
+  select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Contains_Levodopa=ifelse(is.na(Contains_Levodopa), 0, Contains_Levodopa)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP), 0, Levodopa_EXP)) 
+
+# Patients with vs without Levodopa at baseline
+
+LD_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct()
+
+# Patinets with vs without FOG at baseline
+
+FOG_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(FRZGT1W >0) %>% select(PATNO) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(LD_at_baseline_pats %>% mutate(LD_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(FOG_at_baseline_pats %>% mutate(FOG_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(LD_baseline=ifelse(is.na(LD_baseline), 0, LD_baseline))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2,FRZGT1W)) 
+
+
+
+
+test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(PATNO, FRZGT1W, hy_on, Contains_Levodopa, disease_duration, updrs3_score_on ) %>% 
+  mutate(FRZGT1W=as.numeric(FRZGT1W)) %>%
+  mutate(Contains_Levodopa=as.numeric(Contains_Levodopa)) %>%
+    mutate(hy_on=as.numeric(hy_on)) %>% drop_na()
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5, updrs3_score_on=updrs3_score_on/10)
+
+test$FRZGT1W <- factor(test$FRZGT1W, levels = 0:2)
+
+library(ordinal)
+
+model <- clmm(
+  FRZGT1W ~ Contains_Levodopa  + disease_duration + 
+    hy_on  + updrs3_score_on +
+    (1 | PATNO),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+#Cumulative Link Mixed Model fitted with the Laplace approximation
+# 
+# formula: FRZGT1W ~ Contains_Levodopa + disease_duration + hy_on + updrs3_score_on +      (1 | PATNO)
+# data:    test
+# 
+#  link  threshold nobs logLik   AIC     niter     max.grad cond.H 
+#  logit flexible  2641 -1347.07 2708.15 332(2549) 3.39e-04 6.4e+02
+# 
+# Random effects:
+#  Groups Name        Variance Std.Dev.
+#  PATNO  (Intercept) 9.829    3.135   
+# Number of groups:  PATNO 1134 
+# 
+# Coefficients:
+#                   Estimate Std. Error z value Pr(>|z|)    
+# Contains_Levodopa -0.27459    0.34871  -0.787   0.4310    
+# disease_duration   1.94183    0.16479  11.783  < 2e-16 ***
+# hy_on              0.38170    0.21320   1.790   0.0734 .  
+# updrs3_score_on    0.69161    0.09065   7.630 2.35e-14 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1   7.7602     0.5018   15.46
+# 1|2   9.5638     0.5503   17.38
+
+library(ggplot2)
+library(dplyr)
+
+# Fixed effects
+coef <- c(B = -0.27459,
+          disease_duration = 1.94183    ,
+          hoehn_yahr_on = 0.38170,
+          mds3_tot_on = 0.69161)
+
+se <- c(B = 0.34871,
+        disease_duration = 0.16479  ,
+        hoehn_yahr_on = 0.21321,
+        mds3_tot_on = 0.09065)
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Levodopa", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  #xlim(-10,45) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+# ------------
 # All patient visits starting without FOG ----------------
 
 # Curated Data
@@ -1865,6 +2391,12 @@ test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(FRZGT1W, disease_durati
   mutate(FRZGT1W=as.numeric(FRZGT1W)) %>%
   mutate(disease_duration=as.numeric(disease_duration)) %>% drop_na()
 
+test <- test %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2, FRZGT1W)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2, FRZGT1W)) 
+
+
 
 
 model <- ordinal::clm(as.factor(FRZGT1W) ~ disease_duration, data = test)
@@ -1875,20 +2407,18 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2849 -1987.45 3984.89 6(0)  9.38e-08 3.8e+03
+#  logit flexible  2849 -1678.43 3362.87 6(0)  2.55e-07 1.3e+03
 # 
 # Coefficients:
 #                  Estimate Std. Error z value Pr(>|z|)    
-# disease_duration  0.27304    0.01296   21.07   <2e-16 ***
+# disease_duration  0.27412    0.01312    20.9   <2e-16 ***
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1   3.2647     0.1240   26.32
-# 1|2   4.0441     0.1329   30.44
-# 2|3   5.1889     0.1517   34.22
-# 3|4   7.2757     0.2596   28.02
+# 0|1   3.2730     0.1252   26.15
+# 1|2   4.0520     0.1339   30.27
 
 
 
@@ -1910,19 +2440,16 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2850 -2281.92 4573.85 6(1)  3.99e-07 8.3e+01
+#  logit flexible  2850 -1972.05 3950.11 12(0) 3.25e-12 6.6e+01
 # 
 # Coefficients:
 #                               Estimate Std. Error z value Pr(>|z|)
-# as.factor(Contains_Levodopa)1  0.06335    0.20839   0.304    0.761
+# as.factor(Contains_Levodopa)1  0.08053    0.20935   0.385      0.7
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1  1.22217    0.04571   26.74
-# 1|2  1.88087    0.05612   33.51
-# 2|3  2.92919    0.08586   34.12
-# 3|4  4.95535    0.22463   22.06
-
+# 0|1  1.22294    0.04571   26.75
+# 1|2  1.88161    0.05611   33.54
 
 
 PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(hy_on, FRZGT1W) %>% count() %>%
@@ -1943,22 +2470,20 @@ summary(model)
 # data:    test
 # 
 #  link  threshold nobs logLik   AIC     niter max.grad cond.H 
-#  logit flexible  2707 -1951.73 3917.46 7(0)  5.45e-08 4.6e+03
+#  logit flexible  2707 -1672.94 3355.88 7(0)  2.44e-11 3.1e+03
 # 
 # Coefficients:
 #                   Estimate Std. Error z value Pr(>|z|)    
-# as.factor(hy_on)1  -0.5387     0.7742  -0.696 0.486543    
-# as.factor(hy_on)2   0.5402     0.7555   0.715 0.474598    
-# as.factor(hy_on)3   2.7658     0.7620   3.630 0.000284 ***
+# as.factor(hy_on)1  -0.5504     0.7751  -0.710 0.477639    
+# as.factor(hy_on)2   0.5310     0.7564   0.702 0.482689    
+# as.factor(hy_on)3   2.7196     0.7633   3.563 0.000366 ***
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Threshold coefficients:
 #     Estimate Std. Error z value
-# 0|1   1.9563     0.7534   2.597
-# 1|2   2.7287     0.7546   3.616
-# 2|3   3.9253     0.7584   5.176
-# 3|4   6.1303     0.7921   7.739
+# 0|1   1.9451     0.7543   2.579
+# 1|2   2.7188     0.7555   3.598
 
 
 
@@ -1969,15 +2494,11 @@ PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(disease_duration , FRZGT1W ) 
   mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
   mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
   mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
-  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
-  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot)  %>% ungroup() %>%
-  gather(FOG, value, `0`:`4`) %>%
+  mutate(`2`=`2`/tot) %>% ungroup() %>%
+  gather(FOG, value, `0`:`2`) %>%
   ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
   geom_smooth(se=F, size=2, alpha=0.5) +
   theme(axis.text.y = element_blank(),
@@ -1995,7 +2516,7 @@ PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(disease_duration , FRZGT1W ) 
         axis.title.y = element_text(size = 12, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt"))  +
   ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
-  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+  scale_colour_manual(values=c("#F2F2F2", "#104862", "#CD3333")) 
 
 
 
@@ -7202,6 +7723,1435 @@ summary(cox_model_td)
 
 survminer::ggforest(cox_model_td, data = data)
 
+
+
+# ---------------
+# FOG as a function of the cumulative number of levodopa years --------------
+
+# Curated Data
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on
+
+# PPMI patients 
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 3866
+
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+
+
+#  PD only
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(COHORT) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+  
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1441
+
+
+#  Known H&Y >0
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(hy_on!="." & hy_on!="0" ) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1422
+
+
+# Known disease duration <5 at baseline
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(duration_yrs<=5) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1345
+
+
+# >1 visit
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  group_by(PATNO) %>% count() %>% filter(n>1) %>% ungroup() %>%
+  select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1086
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, hy_on, updrs3_score_on)
+
+
+
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(LEDTRT) %>% distinct()
+
+# fwrite(Levodopa_lookups, "Levodopa_lookups.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDTRT, STARTDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% group_by(PATNO, STARTDT) %>% summarise(Contains_Levodopa=max(Contains_Levodopa))
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa==1) %>% ungroup() 
+
+
+
+
+
+
+# Freezing
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- fread("Medical/Determination_of_Freezing_and_Falls_12Feb2025.csv")
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- Determination_of_Freezing_and_Falls_12Feb2025 %>% 
+  select(PATNO, PATNO, EVENT_ID,  INFODT , FRZGT12M , FRZGT1W)
+
+Determination_of_Freezing_and_Falls_12Feb2025$PATNO <- as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$PATNO)
+
+mean(as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$FRZGT12M), na.rm=T)
+
+mean(as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$FRZGT1W), na.rm=T)
+
+Determination_of_Freezing_and_Falls_12Feb2025 %>% group_by(FRZGT1W) %>% count() 
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(Determination_of_Freezing_and_Falls_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="INFODT"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c(EVENT_ID, FRZGT12M)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>% 
+  select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Contains_Levodopa=ifelse(is.na(Contains_Levodopa), 0, Contains_Levodopa)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP), 0, Levodopa_EXP)) 
+
+
+
+
+
+
+
+# Patients with vs without Levodopa at baseline
+
+LD_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct()
+
+length(LD_at_baseline_pats$PATNO) # 15
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
+
+
+
+# Patinets with vs without FOG at baseline
+
+FOG_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(FRZGT1W >0) %>% select(PATNO) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  group_by(FRZGT1W) %>% count()
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(LD_at_baseline_pats %>% mutate(LD_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(FOG_at_baseline_pats %>% mutate(FOG_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(LD_baseline=ifelse(is.na(LD_baseline), 0, LD_baseline))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% anti_join(FOG_at_baseline_pats)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) #1057
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$FRZGT1W)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(is.na(FRZGT1W), 0, FRZGT1W))
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(-LD_baseline, -Levodopa_EXP, -FOG_baseline)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% drop_na()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(-YEAR, -duration_yrs)
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$FRZGT1W)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(FRZGT1W==0,0,1)) %>%
+  mutate(FRZGT1W=as.factor(FRZGT1W))
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on <- PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on / 10
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(visit_date =as.Date(visit_date )) %>%
+  mutate(gap=visit_date -lag(visit_date )) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211$gap <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$gap)
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$Contains_Levodopa)
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(Contains_Levodopa) %>% count()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% mutate(Contains_Levodopa2=lag(Contains_Levodopa)) %>% select(-Contains_Levodopa) %>%
+  drop_na()
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa2==1)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% mutate(gap2=cumsum(gap)) %>% select( -gap, -visit_date)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% ungroup() 
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$FRZGT1W) 
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% drop_na()
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
+
+
+PPMI_Curated_Data_Cut_Public_20241211$gap2 <- PPMI_Curated_Data_Cut_Public_20241211$gap2 / 365.25
+
+library(ordinal)
+
+model <- clmm(
+  FRZGT1W  ~ gap2  + disease_duration  +  hy_on    + updrs3_score_on  +
+    (1 | PATNO),
+  data = PPMI_Curated_Data_Cut_Public_20241211,
+  link = "logit"
+)
+
+summary(model)
+
+
+
+
+
+# Fixed effects
+coef <- c(B = -0.06492        ,
+          disease_duration = 0.62976        ,
+          hoehn_yahr_on = 1.67550        ,
+          mds3_tot_on = 0.30827        )
+
+se <- c(B = 0.26873     ,
+        disease_duration = 0.25069      ,
+        hoehn_yahr_on = 0.95803      ,
+        mds3_tot_on = 0.26469      )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Cumulative # Years ON Levodopa", "Disease duration (x1 year)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+ xlim(-2,35) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot_2.svg", plot = plot, width = 10, height = 6)
+
+# --------
+# FOG using item 3.11 ------------------
+
+MDS_UPDRS_Part_III_12Feb2025 <- fread("Motor___MDS-UPDRS/MDS-UPDRS_Part_III_12Feb2025.csv")
+
+
+MDS_UPDRS_Part_III_12Feb2025 <- MDS_UPDRS_Part_III_12Feb2025 %>%
+  filter(PDSTATE=="ON") %>%
+  select(PATNO , EVENT_ID,PDSTATE, NP3FRZGT)
+
+
+
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on
+
+# PPMI patients 
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 3866
+
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+
+
+#  PD only
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(COHORT) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+  
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1441
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, updrs3_score_on, hy_on, EVENT_ID )
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(LEDTRT) %>% distinct()
+
+# fwrite(Levodopa_lookups, "Levodopa_lookups.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDTRT, STARTDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% group_by(PATNO, STARTDT) %>% summarise(Contains_Levodopa=max(Contains_Levodopa))
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa==1) %>% ungroup() 
+
+
+# Freezing
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- fread("Medical/Determination_of_Freezing_and_Falls_12Feb2025.csv")
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- Determination_of_Freezing_and_Falls_12Feb2025 %>% 
+  select(PATNO, PATNO, EVENT_ID,  INFODT , FRZGT12M , FRZGT1W)
+
+Determination_of_Freezing_and_Falls_12Feb2025$PATNO <- as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$PATNO)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(Determination_of_Freezing_and_Falls_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="INFODT", "EVENT_ID"="EVENT_ID"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c( FRZGT12M)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>% 
+  select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Contains_Levodopa=ifelse(is.na(Contains_Levodopa), 0, Contains_Levodopa)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP), 0, Levodopa_EXP)) 
+
+# Patients with vs without Levodopa at baseline
+
+LD_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct()
+
+# Patinets with vs without FOG at baseline
+
+FOG_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(FRZGT1W >0) %>% select(PATNO) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(LD_at_baseline_pats %>% mutate(LD_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(FOG_at_baseline_pats %>% mutate(FOG_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(LD_baseline=ifelse(is.na(LD_baseline), 0, LD_baseline))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2,FRZGT1W)) 
+
+
+
+
+test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(PATNO, EVENT_ID , FRZGT1W, hy_on, Contains_Levodopa, disease_duration, updrs3_score_on ) %>% 
+  mutate(FRZGT1W=as.numeric(FRZGT1W)) %>%
+  mutate(Contains_Levodopa=as.numeric(Contains_Levodopa)) %>%
+    mutate(hy_on=as.numeric(hy_on)) %>% drop_na()
+
+
+
+test <- test %>% left_join(MDS_UPDRS_Part_III_12Feb2025 %>% drop_na() %>% group_by(PATNO, EVENT_ID) %>% summarise(NP3FRZGT=max(NP3FRZGT, na.rm=T)))
+
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5, updrs3_score_on=updrs3_score_on/10)
+
+unique(test$NP3FRZGT)
+
+test <- test %>% filter(NP3FRZGT<=4)
+
+
+test <- test %>% left_join(MDS_UPDRS_Part_III_12Feb2025)
+
+test %>% mutate(NP3FRZGT=ifelse(NP3FRZGT==0,0,1)) %>%
+  group_by(PDSTATE, Contains_Levodopa, NP3FRZGT) %>% count()
+
+test$NP3FRZGT <- factor(test$NP3FRZGT, levels = 0:4)
+
+library(ordinal)
+
+
+
+model <- clmm(
+  NP3FRZGT ~ Contains_Levodopa  + disease_duration + 
+    hy_on  + updrs3_score_on +
+    (1 | PATNO),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+# 
+# Cumulative Link Mixed Model fitted with the Laplace approximation
+# 
+# formula: NP3FRZGT ~ Contains_Levodopa + disease_duration + hy_on + updrs3_score_on +      (1 | PATNO)
+# data:    test
+# 
+#  link  threshold nobs logLik  AIC     niter     max.grad cond.H 
+#  logit flexible  1784 -601.45 1220.91 515(4675) 2.83e-04 4.0e+03
+# 
+# Random effects:
+#  Groups Name        Variance Std.Dev.
+#  PATNO  (Intercept) 23.82    4.881   
+# Number of groups:  PATNO 754 
+# 
+# Coefficients:
+#                   Estimate Std. Error z value Pr(>|z|)    
+# Contains_Levodopa   0.1963     0.5027   0.391    0.696    
+# disease_duration    1.3394     0.2967   4.515 6.34e-06 ***
+# hy_on               1.3764     0.3483   3.951 7.77e-05 ***
+# updrs3_score_on     1.1673     0.1506   7.752 9.06e-15 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1   14.042      1.126   12.46
+# 1|2   16.932      1.276   13.27
+# 2|3   19.307      1.405   13.74
+# 3|4   20.768      1.487   13.97
+
+
+
+
+# Fixed effects
+coef <- c(B = 0.1963     ,
+          disease_duration = 1.3394         ,
+          hoehn_yahr_on = 1.3764     ,
+          mds3_tot_on = 1.1673     )
+
+se <- c(B = 0.5027   ,
+        disease_duration = 0.2967     ,
+        hoehn_yahr_on = 0.3483   ,
+        mds3_tot_on = 0.1506   )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Levodopa", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  #xlim(-10,45) +
+  labs(
+    x = "\n Adjusted Odds Ratio (3.11 FOG ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+# ------
+# SURVIVAL CURVE USING FOG 3.11 --------------
+# ------------
+# SURVIVAL CURVE USING FOG 3.11 overall data ---------------------------------------------------
+
+# Curated Data
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211$updrs3_score_on
+
+# PPMI patients 
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 3866
+
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+
+
+#  PD only
+PPMI_Curated_Data_Cut_Public_20241211 %>% select(COHORT) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+  
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1441
+
+
+#  Known H&Y >0
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(hy_on!="." & hy_on!="0" ) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1422
+
+
+# Known disease duration <5 at baseline
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR==0) %>%
+  filter(duration_yrs<=5) %>% select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1345
+
+
+# >1 visit
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  group_by(PATNO) %>% count() %>% filter(n>1) %>% ungroup() %>%
+  select(PATNO) %>% distinct() %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) # 1086
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, hy_on, EVENT_ID)
+
+
+
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(LEDTRT) %>% distinct()
+
+# fwrite(Levodopa_lookups, "Levodopa_lookups.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDTRT, STARTDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% group_by(PATNO, STARTDT) %>% summarise(Contains_Levodopa=max(Contains_Levodopa))
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% filter(Contains_Levodopa==1) %>% ungroup() 
+
+
+
+
+
+
+# Freezing
+
+
+
+MDS_UPDRS_Part_III_12Feb2025 <- fread("Motor___MDS-UPDRS/MDS-UPDRS_Part_III_12Feb2025.csv")
+
+MDS_UPDRS_Part_III_12Feb2025 <- MDS_UPDRS_Part_III_12Feb2025 %>% filter(NP3FRZGT!=101) %>%
+  select(PATNO , EVENT_ID,PDSTATE, NP3FRZGT) %>% drop_na() 
+
+MDS_UPDRS_Part_III_12Feb2025 %>% group_by(PDSTATE) %>% count()
+
+MDS_UPDRS_Part_III_12Feb2025 <- MDS_UPDRS_Part_III_12Feb2025 %>% group_by(PATNO, EVENT_ID) %>%
+  summarise(NP3FRZGT=max(NP3FRZGT)) %>% ungroup()
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(MDS_UPDRS_Part_III_12Feb2025, by=c("PATNO"="PATNO", "EVENT_ID"="EVENT_ID"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c(EVENT_ID)) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>% 
+  select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Contains_Levodopa=ifelse(is.na(Contains_Levodopa), 0, Contains_Levodopa)) 
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP), 0, Levodopa_EXP)) 
+
+
+
+
+
+
+
+# Patients with vs without Levodopa at baseline
+
+LD_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(Contains_Levodopa==1) %>% select(PATNO) %>% distinct()
+
+length(LD_at_baseline_pats$PATNO) # 15
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
+
+
+
+# Patinets with vs without FOG at baseline
+
+FOG_at_baseline_pats <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  filter(NP3FRZGT >0) %>% select(PATNO) %>% distinct()
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>% filter(visit_date==min(visit_date)) %>% 
+  group_by(NP3FRZGT) %>% count()
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(LD_at_baseline_pats %>% mutate(LD_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(FOG_at_baseline_pats %>% mutate(FOG_baseline=1))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(LD_baseline=ifelse(is.na(LD_baseline), 0, LD_baseline))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(FOG_baseline=ifelse(is.na(FOG_baseline), 0, FOG_baseline))
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% anti_join(FOG_at_baseline_pats)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO)) #1064
+
+unique(PPMI_Curated_Data_Cut_Public_20241211$NP3FRZGT)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% mutate(NP3FRZGT=ifelse(is.na(NP3FRZGT), 0, NP3FRZGT))
+
+
+# --------------------------------
+
+# SURVIVAL CURVE USING FOG 3.11 Levodopa ON vs OFF at baseline H&Y -------------------------------
+
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR %in% c(0,1)) %>%
+  group_by(YEAR, Contains_Levodopa) %>% count()
+
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR %in% c(0,1)) %>%
+  group_by(YEAR, NP3FRZGT ) %>% count()
+
+
+data_1 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first)) %>%
+  arrange(PATNO, visit_date) %>%
+  mutate(NP3FRZGT=ifelse(is.na(NP3FRZGT),0,NP3FRZGT)) %>%
+  mutate(NP3FRZGT=cumsum(NP3FRZGT)) %>%
+  mutate(NP3FRZGT=ifelse(NP3FRZGT==0,0,1)) %>%
+  filter(NP3FRZGT==1) %>%
+  filter(elapsed==min(elapsed)) %>%
+  ungroup() %>% select(elapsed, NP3FRZGT, LD_baseline) %>% ungroup()
+
+
+data_2 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first)) %>%
+  arrange(PATNO, visit_date) %>%
+  mutate(NP3FRZGT=ifelse(is.na(NP3FRZGT),0,NP3FRZGT)) %>%
+  mutate(NP3FRZGT=cumsum(NP3FRZGT)) %>%
+  mutate(NP3FRZGT=ifelse(NP3FRZGT==0,0,1)) %>%
+  anti_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(NP3FRZGT>0) %>% select(PATNO) %>% distinct()) %>%
+  filter(elapsed==max(elapsed)) %>%
+  ungroup() %>% select(elapsed, NP3FRZGT, LD_baseline ) %>% ungroup()
+
+
+data <- data_1 %>% bind_rows(data_2)
+
+unique(data$NP3FRZGT)
+
+unique(data$LD_baseline)
+
+sum(is.na(data))
+
+mean(data$NP3FRZGT)
+mean(data$LD_baseline)
+
+
+data <- data %>% mutate(LD_baseline=ifelse(LD_baseline==1, "Levodopa baseline", "no LD baseline"))
+
+library(survival)
+library(survminer)
+
+
+
+data <- data %>% mutate(elapsed=elapsed/30.25)
+
+unique(data$LD_baseline)
+
+data <- data %>% rename("Baseline"="LD_baseline") %>%
+  mutate(Baseline=ifelse(Baseline=="no LD baseline", "w/o LD", "ON LD"))
+
+km_fit <- survfit(Surv(elapsed , NP3FRZGT  ) ~ Baseline   , data = data)
+
+summary(km_fit)
+
+km_fit
+
+data %>% group_by(Baseline, NP3FRZGT) %>% count()
+
+
+data %>% group_by(Baseline) %>% summarise(mean=mean(elapsed), sd =sd(elapsed))
+data %>% group_by(Baseline) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
+
+# 600x600
+
+
+
+
+# Step 3: Plot Kaplan-Meier curve
+plot <- ggsurvplot(km_fit, data = data, 
+           pval = FALSE,          # Add p-value for log-rank test
+           conf.int = TRUE,      # Add confidence interval
+           #risk.table = TRUE,    # Add risk table to the plot
+           palette = c("#CD3333", "#83CBEB"), # Example color palette
+           ggtheme = theme_minimal(),
+           xlab=("\n # months From Baseline"),
+           ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
+
+
+
+# Step 4: Summary and log-rank test to compare the groups
+summary(km_fit)
+
+# Optional: If you want to do a formal comparison
+log_rank_test <- survdiff(Surv(elapsed , NP3FRZGT ) ~ Baseline, data = data)
+
+log_rank_test
+
+survdiff(Surv(elapsed , NP3FRZGT ) ~ Baseline, data = data, rho = 1)  # Peto-Peto test
+
+# Call:
+# survdiff(formula = Surv(elapsed, NP3FRZGT) ~ Baseline, data = data, 
+#     rho = 1)
+# 
+#                    N Observed Expected (O-E)^2/E (O-E)^2/V
+# Baseline=ON LD    15     2.57     1.51   0.74498      0.87
+# Baseline=w/o LD 1049   187.51   188.57   0.00598      0.87
+
+ # Chisq= 0.9  on 1 degrees of freedom, p= 0.4 
+
+coxph(Surv(elapsed, NP3FRZGT) ~ Baseline, data = data)
+
+# Call:
+# coxph(formula = Surv(elapsed, FRZGT1W) ~ LD_baseline, data = data)
+# 
+#                              coef exp(coef) se(coef)      z      p
+# LD_baselineno LD baseline -1.1915    0.3038   0.5855 -2.035 0.0419
+# 
+# Likelihood ratio test=2.93  on 1 df, p=0.08691
+# n= 1057, number of events= 274
+
+
+
+
+
+
+
+data <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first))
+
+data <- data %>% select(PATNO, elapsed, LD_baseline, hy_on )
+
+data <- data %>% drop_na()
+
+data$elapsed <- (data$elapsed - mean(data$elapsed)) / 365
+
+
+library(nlme)
+
+lme_model <- nlme::lme(fixed = hy_on ~ elapsed + LD_baseline,
+                 random = ~ elapsed | PATNO,
+                 data = data,
+                 method = "REML")
+
+summary(lme_model)
+
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC     BIC    logLik
+#   6854.352 6900.84 -3420.176
+# 
+# Random effects:
+#  Formula: ~elapsed | PATNO
+#  Structure: General positive-definite, Log-Cholesky parametrization
+#             StdDev     Corr  
+# (Intercept) 0.30810808 (Intr)
+# elapsed     0.04653923 0.079 
+# Residual    0.37253492       
+# 
+# Fixed effects:  hy_on ~ elapsed + LD_baseline 
+#                 Value  Std.Error   DF   t-value p-value
+# (Intercept) 1.8776705 0.01197253 4598 156.83156  0.0000
+# elapsed     0.0553563 0.00274140 4598  20.19270  0.0000
+# LD_baseline 0.2209213 0.10044880 1062   2.19934  0.0281
+#  Correlation: 
+#             (Intr) elapsd
+# elapsed      0.310       
+# LD_baseline -0.103  0.014
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -5.6836927 -0.4126231  0.1078307  0.4074393  3.7807238 
+# 
+# Number of Observations: 5663
+# Number of Groups: 1064 
+
+data <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first))
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = PATNO, time = elapsed, hy_stage = hy_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+
+sum(is.na(data$NP3FRZGT))
+sum(is.na(data$hy_stage))
+
+
+
+data <- data %>% select(ID, time, hy_stage , NP3FRZGT, LD_baseline)
+
+data <- data %>% drop_na()
+
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+
+unique(data$NP3FRZGT)
+
+
+data <- data %>% mutate(NP3FRZGT =ifelse(NP3FRZGT>0,1,NP3FRZGT ))
+
+library(survival)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, NP3FRZGT ) ~ LD_baseline  + hy_stage + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+
+# Call:
+# coxph(formula = Surv(Start, Stop, NP3FRZGT) ~ LD_baseline + hy_stage, 
+#     data = data, cluster = ID)
+# 
+#   n= 4599, number of events= 471 
+# 
+#                 coef exp(coef) se(coef) robust se      z Pr(>|z|)    
+# LD_baseline -0.35475   0.70135  0.58048   0.43016 -0.825     0.41    
+# hy_stage     1.03880   2.82582  0.09214   0.12591  8.251   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#             exp(coef) exp(-coef) lower .95 upper .95
+# LD_baseline    0.7013     1.4258    0.3018     1.630
+# hy_stage       2.8258     0.3539    2.2079     3.617
+# 
+# Concordance= 0.618  (se = 0.016 )
+# Likelihood ratio test= 125.2  on 2 df,   p=<2e-16
+# Wald test            = 68.1  on 2 df,   p=2e-15
+# Score (logrank) test = 123.4  on 2 df,   p=<2e-16,   Robust = 45.23  p=2e-10
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+forest_df <- data.frame(
+  term  = c("Baseline Levodopa (LD)", 
+            "H&Y Stage"),
+  HR    = c(0.70135  , 2.82582     ),
+  lower = c(0.3018     , 2.2079     ),   # <- if you have exact CI replace here
+  upper = c(1.630, 3.617),   # <- replace if needed
+  p     = c(0.41, 2e-16)
+)
+
+forest_df <- forest_df %>%
+  mutate(
+    p_label = ifelse(p < 0.001,
+                     "p < 0.001",
+                     paste0("p = ", round(p, 3))),
+    label = paste0(
+      "HR ", round(HR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\n", p_label
+    )
+  )
+
+plot <- forest_df %>%
+  mutate(term=ifelse(term=="Baseline Levodopa (LD)", "ON Levodopa Baseline", "HY& +1")) %>%
+  
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ Baseline LD + H&Y",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
+
+
+
+
+# --------------------------------
+
+
+# SURVIVAL CURVE USING FOG 3.11 NOT ON LEVODOPA AT BASELINE H&Y-----------------------------------------
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(LD_baseline==0)
+
+length(unique(PPMI_Curated_Data_Cut_Public_20241211$PATNO))
+
+names(PPMI_Curated_Data_Cut_Public_20241211)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% left_join(
+  PPMI_Curated_Data_Cut_Public_20241211 %>% filter(Contains_Levodopa==1) %>%
+    select(PATNO) %>% distinct() %>% mutate(Levodopa_EXP=1)
+  ) %>% mutate(Levodopa_EXP=ifelse(is.na(Levodopa_EXP),0,Levodopa_EXP))
+
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR %in% c(0,1)) %>%
+  group_by(YEAR, Contains_Levodopa) %>% count()
+
+
+PPMI_Curated_Data_Cut_Public_20241211 %>% filter(YEAR %in% c(0,1)) %>%
+  group_by(YEAR, NP3FRZGT ) %>% count()
+
+
+  
+
+data_1 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first)) %>%
+  arrange(PATNO, visit_date) %>%
+  mutate(NP3FRZGT=ifelse(is.na(NP3FRZGT),0,NP3FRZGT)) %>%
+  mutate(NP3FRZGT=cumsum(NP3FRZGT)) %>%
+  mutate(NP3FRZGT=ifelse(NP3FRZGT==0,0,1)) %>%
+  filter(NP3FRZGT==1) %>%
+  filter(elapsed==min(elapsed)) %>%
+  ungroup() %>% select(elapsed, NP3FRZGT, Levodopa_EXP) %>% ungroup()
+
+
+data_2 <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first)) %>%
+  arrange(PATNO, visit_date) %>%
+  mutate(NP3FRZGT=ifelse(is.na(NP3FRZGT),0,NP3FRZGT)) %>%
+  mutate(NP3FRZGT=cumsum(NP3FRZGT)) %>%
+  mutate(NP3FRZGT=ifelse(NP3FRZGT==0,0,1)) %>%
+  anti_join(PPMI_Curated_Data_Cut_Public_20241211 %>% filter(NP3FRZGT>0) %>% select(PATNO) %>% distinct()) %>%
+  filter(elapsed==max(elapsed)) %>%
+  ungroup() %>% select(elapsed, NP3FRZGT, Levodopa_EXP ) %>% ungroup()
+
+
+
+data <- data_1 %>% bind_rows(data_2)
+
+unique(data$NP3FRZGT)
+
+sum(is.na(data))
+
+
+data <- data %>% mutate(Levodopa_EXP=ifelse(Levodopa_EXP==1, "Levodopa-experienced", "Levodopa-naive"))
+
+
+
+
+
+library(survival)
+library(survminer)
+
+data <- data %>% mutate(elapsed=elapsed/30.25)
+
+
+
+unique(data$Levodopa_EXP)
+
+data <- data %>% rename("Exposure"="Levodopa_EXP") %>%
+  mutate(Exposure=ifelse(Exposure=="Levodopa-naive", "w/o LD", "Levodopa"))
+
+
+
+data %>% group_by(Exposure) %>% summarise(mean=mean(elapsed), sd =sd(elapsed))
+data %>% group_by(Exposure) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
+
+# 600x600
+
+km_fit <- survfit(Surv(elapsed , NP3FRZGT  ) ~ Exposure   , data = data)
+
+summary(km_fit)
+
+km_fit
+
+
+
+
+
+
+# Step 3: Plot Kaplan-Meier curve
+plot <- ggsurvplot(km_fit, data = data, 
+           pval = TRUE,          # Add p-value for log-rank test
+           conf.int = TRUE,      # Add confidence interval
+           #risk.table = TRUE,    # Add risk table to the plot
+           palette = c("#CD3333", "#83CBEB"), # Example color palette
+           ggtheme = theme_minimal(),
+           xlab=("\n # months From Baseline"),
+           ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
+
+
+
+# Step 4: Summary and log-rank test to compare the groups
+summary(km_fit)
+
+# Optional: If you want to do a formal comparison
+log_rank_test <- survdiff(Surv(elapsed , NP3FRZGT  ) ~ Exposure, data = data)
+
+log_rank_test
+
+survdiff(Surv(elapsed , NP3FRZGT  ) ~ Exposure, data = data, rho = 1)  # Peto-Peto test
+
+# Call:
+# survdiff(formula = Surv(elapsed, NP3FRZGT) ~ Exposure, data = data, 
+#     rho = 1)
+# 
+#                     N Observed Expected (O-E)^2/E (O-E)^2/V
+# Exposure=Levodopa 248     66.9     70.2    0.1511     0.309
+# Exposure=w/o LD   801    120.8    117.6    0.0902     0.309
+# 
+#  Chisq= 0.3  on 1 degrees of freedom, p= 0.6 
+#  
+coxph(Surv(elapsed, NP3FRZGT) ~ Exposure, data = data)
+
+# Call:
+# coxph(formula = Surv(elapsed, NP3FRZGT) ~ Exposure, data = data)
+# 
+#                   coef exp(coef) se(coef)     z     p
+# Exposurew/o LD 0.07479   1.07766  0.13468 0.555 0.579
+# 
+# Likelihood ratio test=0.31  on 1 df, p=0.5775
+# n= 1049, number of events= 242 
+
+
+
+
+data <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first))
+
+data <- data %>% select(PATNO, elapsed, Levodopa_EXP, hy_on )
+
+
+data <- data %>% drop_na()
+
+data$elapsed <- (data$elapsed - mean(data$elapsed)) / 365
+
+
+library(nlme)
+
+lme_model <- nlme::lme(fixed = hy_on ~ elapsed + Levodopa_EXP,
+                 random = ~ elapsed | PATNO,
+                 data = data,
+                 method = "REML")
+
+summary(lme_model)
+
+# Linear mixed-effects model fit by REML
+#   Data: data 
+#        AIC      BIC    logLik
+#   6758.392 6804.804 -3372.196
+# 
+# Random effects:
+#  Formula: ~elapsed | PATNO
+#  Structure: General positive-definite, Log-Cholesky parametrization
+#             StdDev     Corr  
+# (Intercept) 0.30791740 (Intr)
+# elapsed     0.04617122 0.064 
+# Residual    0.37159718       
+# 
+# Fixed effects:  hy_on ~ elapsed + Levodopa_EXP 
+#                   Value   Std.Error   DF   t-value p-value
+# (Intercept)   1.8857884 0.014030435 4552 134.40698  0.0000
+# elapsed       0.0557335 0.002752565 4552  20.24785  0.0000
+# Levodopa_EXP -0.0266191 0.025906027 1047  -1.02753  0.3044
+#  Correlation: 
+#              (Intr) elapsd
+# elapsed       0.317       
+# Levodopa_EXP -0.524 -0.115
+# 
+# Standardized Within-Group Residuals:
+#        Min         Q1        Med         Q3        Max 
+# -5.7005164 -0.4172137  0.1113827  0.4086947  3.7854315 
+# 
+# Number of Observations: 5602
+# Number of Groups: 1049 
+
+
+data <- PPMI_Curated_Data_Cut_Public_20241211 %>% group_by(PATNO) %>%
+  mutate(first=min(visit_date)) %>%
+  mutate(elapsed=as.numeric(visit_date-first))
+
+# Rename columns for clarity
+data <- data %>%
+  rename(ID = PATNO, time = elapsed, hy_stage = hy_on)
+
+# Sort data by patient ID and time
+data <- data %>% arrange(ID, time)
+
+
+sum(is.na(data$NP3FRZGT))
+sum(is.na(data$hy_stage))
+
+
+
+data <- data %>% select(ID, time, hy_stage , NP3FRZGT, Levodopa_EXP)
+
+data <- data %>% drop_na()
+
+
+# Create start-stop format
+data <- data %>%
+  group_by(ID) %>%
+  mutate(Start = lag(time, default = 0),  # Start at 0 for first entry
+         Stop = time) %>%
+  ungroup()
+
+
+data <- data %>% filter(Start < Stop)
+
+
+unique(data$NP3FRZGT)
+
+
+data <- data %>% mutate(NP3FRZGT =ifelse(NP3FRZGT>0,1,NP3FRZGT ))
+
+library(survival)
+
+# Fit the time-dependent Cox model
+cox_model_td <- coxph(Surv(Start, Stop, NP3FRZGT ) ~ Levodopa_EXP  + hy_stage + cluster(ID), data = data)
+
+# Show results
+summary(cox_model_td)
+
+
+# Call:
+# coxph(formula = Surv(Start, Stop, NP3FRZGT) ~ Levodopa_EXP + 
+#     hy_stage, data = data, cluster = ID)
+# 
+#   n= 4553, number of events= 468 
+# 
+#                 coef exp(coef) se(coef) robust se     z Pr(>|z|)    
+# Levodopa_EXP 0.16263   1.17660  0.09395   0.13583 1.197    0.231    
+# hy_stage     1.04685   2.84867  0.09254   0.12627 8.291   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#              exp(coef) exp(-coef) lower .95 upper .95
+# Levodopa_EXP     1.177     0.8499    0.9016     1.536
+# hy_stage         2.849     0.3510    2.2241     3.649
+# 
+# Concordance= 0.625  (se = 0.02 )
+# Likelihood ratio test= 127.4  on 2 df,   p=<2e-16
+# Wald test            = 69.12  on 2 df,   p=1e-15
+# Score (logrank) test = 125.8  on 2 df,   p=<2e-16,   Robust = 44.62  p=2e-10
+# 
+#   (Note: the likelihood ratio and score tests assume independence of
+#      observations within a cluster, the Wald and robust score tests do not).
+
+
+
+survminer::ggforest(cox_model_td, data = data)
+
+
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Levodopa_EXP", "Levodopa Exposure", "HY& +1")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ H&Y + Future LD Exposure",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
 
 
 # ---------------
