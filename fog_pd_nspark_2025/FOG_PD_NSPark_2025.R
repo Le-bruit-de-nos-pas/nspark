@@ -352,30 +352,26 @@ test %>% filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
   ggplot(aes(hoehn_yahr_on, freezing)) +
   geom_jitter()
 
-test %>% group_by(hoehn_yahr_on, freezing) %>% count() %>%
+test %>%  mutate(freezing=ifelse(freezing>=2,2,freezing)) %>%
+  group_by(hoehn_yahr_on, freezing) %>% count() %>%
   spread(key=freezing, value=n) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot) 
+  mutate(`2`=`2`/tot) 
 
 
-test %>% group_by(disease_duration , freezing) %>% count() %>%
+plot <- test %>% mutate(freezing=ifelse(freezing>=2,2,freezing)) %>%
+  group_by(disease_duration , freezing) %>% count() %>%
   spread(key=freezing, value=n) %>%
   mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
   mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
   mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
-  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
-  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot)  %>% ungroup() %>%
-  gather(FOG, value, `0`:`4`) %>%
+  mutate(`2`=`2`/tot)  %>% ungroup() %>%
+  gather(FOG, value, `0`:`2`) %>%
   filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
   ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
   geom_smooth(se=F, size=2, alpha=0.5) +
@@ -388,28 +384,31 @@ test %>% group_by(disease_duration , freezing) %>% count() %>%
         strip.background = element_blank(),
         strip.text = element_blank(),
         axis.line = element_blank(),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 12, vjust = -0.5),
-        axis.title.y = element_text(size = 12, vjust = -0.5),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.title.y = element_text(size = 14, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt"))  +
+  theme(text = element_text(face = "bold")) +
   ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
-  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+  scale_colour_manual(values=c("#7F7F7F",  "#82CBEB",  "#2F5597")) 
 
 
+plot
 
+ggsave(filename = "example-plot.svg", plot = plot, width = 4, height = 4)
 
-test %>% group_by(B, freezing) %>% count() %>%
+test %>% mutate(freezing=ifelse(freezing>=2,2,freezing)) %>%
+  group_by(B, freezing) %>% count() %>%
   spread(key=freezing, value=n) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot) 
+  mutate(`2`=`2`/tot) 
 
 
-test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mean(freezing)) %>%
+test %>% mutate(freezing=ifelse(freezing>=2,2,freezing)) %>%
+  group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mean(freezing)) %>%
   filter(disease_duration<40) %>% filter(disease_duration>=0) %>% ungroup() %>%
   filter(hoehn_yahr_on>0) %>%
   mutate(B=ifelse(B==0, "No Levodopa", "ON Levodopa")) %>%
@@ -442,22 +441,77 @@ test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mea
 
 
 
-test
+test <- test %>% mutate(freezing=ifelse(freezing>=2,2,freezing)) 
 
 model <- ordinal::clm(as.factor(freezing) ~ as.factor(B) , data = test)
 
 summary(model)
 
+# formula: as.factor(freezing) ~ as.factor(B)
+# data:    test
+# 
+#  link  threshold nobs  logLik    AIC      niter max.grad cond.H 
+#  logit flexible  35256 -29519.57 59045.13 5(0)  3.71e-11 1.8e+01
+# 
+# Coefficients:
+#               Estimate Std. Error z value Pr(>|z|)    
+# as.factor(B)1  0.44418    0.02402   18.49   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  1.00108    0.01989   50.32
+# 1|2  2.41994    0.02414  100.24
+# 
+
 model <- ordinal::clm(as.factor(freezing) ~ as.factor(hoehn_yahr_on) , data = test)
 
 summary(model)
 
+# formula: as.factor(freezing) ~ as.factor(hoehn_yahr_on)
+# data:    test
+# 
+#  link  threshold nobs  logLik    AIC      niter max.grad cond.H 
+#  logit flexible  35256 -24365.54 48745.09 6(0)  3.74e-12 9.6e+02
+# 
+# Coefficients:
+#                           Estimate Std. Error z value Pr(>|z|)    
+# as.factor(hoehn_yahr_on)1  -0.6670     0.1354  -4.926 8.38e-07 ***
+# as.factor(hoehn_yahr_on)2   0.7716     0.1252   6.162 7.18e-10 ***
+# as.factor(hoehn_yahr_on)3   2.5612     0.1256  20.386  < 2e-16 ***
+# as.factor(hoehn_yahr_on)4   3.5789     0.1302  27.492  < 2e-16 ***
+# as.factor(hoehn_yahr_on)5   3.4343     0.1386  24.773  < 2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1   2.1133     0.1238   17.07
+# 1|2   3.9246     0.1252   31.34
 
 
 model <- ordinal::clm(as.factor(freezing) ~ disease_duration , data = test)
 
 summary(model)
 
+
+# ormula: as.factor(freezing) ~ disease_duration
+# data:    test
+# 
+#  link  threshold nobs  logLik    AIC      niter max.grad cond.H 
+#  logit flexible  35256 -26820.56 53647.13 6(0)  4.84e-11 1.4e+03
+# 
+# Coefficients:
+#                  Estimate Std. Error z value Pr(>|z|)    
+# disease_duration 0.121021   0.001703   71.05   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  1.88614    0.02143   88.02
+# 1|2  3.51276    0.02820  124.56
 
 # ---------
 # Multivariate Mediation Analysis all patient-visits and mixed models -------------
@@ -546,6 +600,336 @@ summary(model_lmm)
 
 
 # ---------
+# All patient visits - ordered logistic regression all cofounders -----
+df_complet <- fread( "df_complet.txt")
+
+df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
+
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
+
+df_complet <- df_complet %>% inner_join(Echellesmdsupdrs_20250106, by=c("anonyme_id...25"="anonyme_id", "redcap_repeat_instance"="redcap_repeat_instance"))
+
+
+
+
+test <- df_complet %>% select( `anonyme_id...25`, B, freezing, disease_duration, hoehn_yahr_on, mds3_tot_on) %>%
+    mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5)
+test <- test %>% mutate(mds3_tot_on=mds3_tot_on/10)
+
+
+library(ordinal)
+
+model <- clmm(
+  as.factor(freezing) ~ B + disease_duration + 
+    hoehn_yahr_on + mds3_tot_on +
+    (1 | `anonyme_id...25`),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+
+# 
+# We fitted cumulative link mixed-effects models (logit link) with a random intercept 
+# for participant to account for repeated measures. Freezing severity (0–4) was modeled as an ordinal outcome. 
+# Covariates included B, disease duration, Hoehn & Yahr stage (ON), and MDS-UPDRS III (ON).
+
+
+# Odds of being in a higher freezing category vs all lower categories combined
+
+
+# Cumulative Link Mixed Model fitted with the Laplace approximation
+# 
+# formula: as.factor(freezing) ~ B + disease_duration + hoehn_yahr_on +  
+#     mds3_tot_on + (1 | anonyme_id...25)
+# data:    test
+# 
+#  link  threshold nobs logLik   AIC     niter     max.grad cond.H 
+#  logit flexible  2106 -1058.24 2134.49 651(9754) 6.54e-04 6.0e+03
+# 
+# Random effects:
+#  Groups          Name        Variance Std.Dev.
+#  anonyme_id...25 (Intercept) 59.98    7.745   
+# Number of groups:  anonyme_id...25 1503 
+# 
+# Coefficients:
+#                  Estimate Std. Error z value Pr(>|z|)    
+# B                  0.6120     0.3421   1.789   0.0736 .  
+# disease_duration   1.4701     0.1884   7.804 5.98e-15 ***
+# hoehn_yahr_on      1.9148     0.3347   5.721 1.06e-08 ***
+# mds3_tot_on        0.6174     0.1510   4.089 4.33e-05 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  13.9865     0.9378   14.91
+# 1|2  18.0699     1.1479   15.74
+# 2|3  22.0585     1.3691   16.11
+# 3|4  26.4314     1.6486   16.03
+
+test$freezing_factor <- factor(test$freezing, levels = 0:4)
+
+library(ordinal)
+
+model <- clmm(
+  freezing_factor ~ B + disease_duration + hoehn_yahr_on + mds3_tot_on +
+    (1 | `anonyme_id...25`),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+# Cumulative Link Mixed Model fitted with the Laplace approximation
+# 
+# formula: freezing_factor ~ B + disease_duration + hoehn_yahr_on + mds3_tot_on +  
+#     (1 | anonyme_id...25)
+# data:    test
+# 
+#  link  threshold nobs logLik   AIC     niter     max.grad cond.H 
+#  logit flexible  2106 -1058.24 2134.49 651(9754) 6.54e-04 6.0e+03
+# 
+# Random effects:
+#  Groups          Name        Variance Std.Dev.
+#  anonyme_id...25 (Intercept) 59.98    7.745   
+# Number of groups:  anonyme_id...25 1503 
+# 
+# Coefficients:
+#                  Estimate Std. Error z value Pr(>|z|)    
+# B                  0.6120     0.3421   1.789   0.0736 .  
+# disease_duration   2.9402     0.3767   7.805 5.96e-15 ***
+# hoehn_yahr_on      1.9148     0.3347   5.721 1.06e-08 ***
+# mds3_tot_on        0.6174     0.1510   4.089 4.33e-05 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  13.9865     0.9376   14.92
+# 1|2  18.0699     1.1477   15.74
+# 2|3  22.0584     1.3688   16.11
+# 3|4  26.4313     1.6484   16.04
+# 
+
+
+library(ggplot2)
+library(dplyr)
+
+# Fixed effects
+coef <- c(B = 0.6120,
+          disease_duration = 1.4701,
+          hoehn_yahr_on = 1.9148,
+          mds3_tot_on = 0.6174)
+
+se <- c(B = 0.3421,
+        disease_duration = 0.1884,
+        hoehn_yahr_on = 0.3347,
+        mds3_tot_on = 0.1510)
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Levodopa", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+# ------------
+# All patient visits - ordered logistic regression all cofounders Total LEDD -----
+df_complet <- fread( "df_complet.txt")
+
+df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
+
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on)
+
+df_complet <- df_complet %>% inner_join(Echellesmdsupdrs_20250106, by=c("anonyme_id...25"="anonyme_id", "redcap_repeat_instance"="redcap_repeat_instance"))
+
+
+
+
+test <- df_complet %>% select( `anonyme_id...25`, B, freezing, disease_duration, hoehn_yahr_on, mds3_tot_on, `act_datedeb...27`) %>%
+    mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
+  mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5)
+test <- test %>% mutate(mds3_tot_on=mds3_tot_on/10)
+
+
+
+LEDD <- read_excel(path = "Consultation_20250106.xlsx")
+
+LEDD <- LEDD %>% select(anonyme_id,act_datedeb ,  ttt_ledd_totale)
+
+LEDD$act_datedeb <- as.Date(LEDD$act_datedeb)
+
+test <- test %>% left_join(LEDD, by=c("anonyme_id...25"="anonyme_id", "act_datedeb...27"="act_datedeb")) %>% drop_na()
+
+
+test$ttt_ledd_totale <- as.numeric(test$ttt_ledd_totale)
+
+
+test$ttt_ledd_totale <- test$ttt_ledd_totale / 250
+
+library(ordinal)
+
+model <- clmm(
+  as.factor(freezing) ~ ttt_ledd_totale + disease_duration + 
+    hoehn_yahr_on + mds3_tot_on +
+    (1 | `anonyme_id...25`),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+
+# Fixed effects
+coef <- c(B = 0.013883   ,
+          disease_duration = 1.475911   ,
+          hoehn_yahr_on = 2.263538   ,
+          mds3_tot_on = 0.769536   )
+
+se <- c(B = 0.005811   ,
+        disease_duration = 0.228893   ,
+        hoehn_yahr_on = 0.430872   ,
+        mds3_tot_on = 0.184885   )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Total LEDD", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+
+plot
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+# ------------
 # Initial distributions overall all patient-visits STARTING WITH FOG = 0 -------------
 
 df_complet <- fread( "df_complet.txt")
@@ -562,6 +946,9 @@ test <- df_complet %>% select(B, freezing, disease_duration, hoehn_yahr_on) %>%
     mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
   mutate(freezing=ifelse(freezing==">=2",2,freezing)) %>%
   mutate(freezing=as.numeric(freezing)) %>% drop_na() 
+
+
+test <- test %>% mutate(freezing=ifelse(freezing>=2,2,freezing)) 
 
 
 test # 22987 visits
@@ -594,12 +981,13 @@ summary(mediate_result2)
 
 test %>% group_by(hoehn_yahr_on, freezing) %>% count() %>%
   spread(key=freezing, value=n) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot) 
+  mutate(`2`=`2`/tot) 
+
+
+
 
 
 test %>% group_by(disease_duration , freezing) %>% count() %>%
@@ -607,15 +995,12 @@ test %>% group_by(disease_duration , freezing) %>% count() %>%
   mutate(`0`=ifelse(is.na(`0`),0,`0`)) %>%
   mutate(`1`=ifelse(is.na(`1`),0,`1`)) %>%
   mutate(`2`=ifelse(is.na(`2`),0,`2`)) %>%
-  mutate(`3`=ifelse(is.na(`3`),0,`3`)) %>%
-  mutate(`4`=ifelse(is.na(`4`),0,`4`)) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
   mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot)  %>% ungroup() %>%
-  gather(FOG, value, `0`:`4`) %>%
+ ungroup() %>%
+  gather(FOG, value, `0`:`2`) %>%
   filter(disease_duration<40) %>% filter(disease_duration>=0) %>%
   ggplot(aes(disease_duration, value, colour=FOG, fill=FOG)) +
   geom_smooth(se=F, size=2, alpha=0.5) +
@@ -634,19 +1019,17 @@ test %>% group_by(disease_duration , freezing) %>% count() %>%
         axis.title.y = element_text(size = 12, vjust = -0.5),
         plot.margin = margin(5, 5, 5, 5, "pt"))  +
   ylab("Proportion of patient-visits \n") + xlab("\n Disease duration [years]") +
-  scale_colour_manual(values=c("#F2F2F2", "#83CBEB", "#104862", "#F6C6AD", "#CD3333")) 
+  scale_colour_manual(values=c("#F2F2F2", "#104862",  "#CD3333")) 
 
 
 
 
 test %>% group_by(B, freezing) %>% count() %>%
   spread(key=freezing, value=n) %>%
-  mutate(tot=`0`+`1`+`2`+`3`+`4`) %>%
+  mutate(tot=`0`+`1`+`2`) %>%
   mutate(`0`=`0`/tot) %>%
   mutate(`1`=`1`/tot) %>%
-  mutate(`2`=`2`/tot) %>%
-  mutate(`3`=`3`/tot) %>%
-  mutate(`4`=`4`/tot) 
+  mutate(`2`=`2`/tot) 
 
 
 test %>% group_by(B, disease_duration, hoehn_yahr_on) %>% summarise(freezing=mean(freezing)) %>%
@@ -688,15 +1071,67 @@ model <- ordinal::clm(as.factor(freezing) ~ as.factor(B) , data = test)
 summary(model)
 
 
+# formula: as.factor(freezing) ~ as.factor(B)
+# data:    test
+# 
+#  link  threshold nobs  logLik    AIC      niter max.grad cond.H 
+#  logit flexible  22997 -10130.60 20267.20 6(0)  2.62e-11 2.8e+01
+# 
+# Coefficients:
+#               Estimate Std. Error z value Pr(>|z|)    
+# as.factor(B)1   0.9610     0.0479   20.06   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  2.62308    0.04202   62.43
+# 1|2  3.90945    0.05098   76.68
+
 model <- ordinal::clm(as.factor(freezing) ~ as.factor(hoehn_yahr_on) , data = test)
 
 summary(model)
 
+# formula: as.factor(freezing) ~ as.factor(hoehn_yahr_on)
+# data:    test
+# 
+#  link  threshold nobs  logLik   AIC      niter max.grad cond.H 
+#  logit flexible  22997 -9091.93 18197.87 7(0)  1.47e-11 3.4e+03
+# 
+# Coefficients:
+#                           Estimate Std. Error z value Pr(>|z|)    
+# as.factor(hoehn_yahr_on)1   0.4069     0.3681   1.105    0.269    
+# as.factor(hoehn_yahr_on)2   1.9171     0.3575   5.362 8.21e-08 ***
+# as.factor(hoehn_yahr_on)3   3.4514     0.3580   9.642  < 2e-16 ***
+# as.factor(hoehn_yahr_on)4   4.4079     0.3664  12.030  < 2e-16 ***
+# as.factor(hoehn_yahr_on)5   3.6588     0.3881   9.427  < 2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1   4.1821     0.3562   11.74
+# 1|2   5.5783     0.3576   15.60
 
 model <- ordinal::clm(as.factor(freezing) ~ disease_duration , data = test)
 
 summary(model)
 
+# formula: as.factor(freezing) ~ disease_duration
+# data:    test
+# 
+#  link  threshold nobs  logLik   AIC      niter max.grad cond.H 
+#  logit flexible  22997 -9582.99 19171.99 6(0)  8.00e-11 1.2e+03
+# 
+# Coefficients:
+#                  Estimate Std. Error z value Pr(>|z|)    
+# disease_duration 0.116084   0.002977   38.99   <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Threshold coefficients:
+#     Estimate Std. Error z value
+# 0|1  2.96879    0.03685   80.58
 
 # ---------
 # Create the patient funel for early PD drug groups --------
@@ -1232,7 +1667,15 @@ data <- filtered_data %>% ungroup() %>% select(-anonyme_id...1)
 
 data <- data %>% mutate(Groups=ifelse(Groups=="1- LD", "Levodopa Baseline", "no LD baseline"))
 
-km_fit <- survfit(Surv(elapsed, freezing ) ~ Groups   , data = data)
+data <- data %>% mutate(elapsed=elapsed/30.25)
+
+unique(data$Groups)
+
+data <- data %>% rename("Baseline"="Groups") %>%
+  mutate(Baseline=ifelse(Baseline=="no LD baseline", "w/o LD", "ON LD"))
+
+
+km_fit <- survfit(Surv(elapsed, freezing ) ~ Baseline   , data = data)
 
 summary(km_fit)
 
@@ -1240,15 +1683,71 @@ km_fit
 
 
 
+
+
+plot <- data %>%
+  rename("Baseline Levodopa Status"="Baseline", "# Months Until FOG/Censoring"="elapsed") %>%
+  ggplot(aes(`Baseline Levodopa Status`, `# Months Until FOG/Censoring`, colour=`Baseline Levodopa Status`, fill=`Baseline Levodopa Status`)) +
+  geom_jitter(shape=1, stroke=1, size=0.5, alpha=0.4) +
+  geom_boxplot(outliers = FALSE, notch=TRUE, alpha=0.7) + 
+  coord_flip() +
+  ylab("\n # Months Until FOG/Censoring") + xlab("Baseline Levodopa Status \n") +
+  theme_minimal() +
+  scale_colour_manual(values=c("#CD3333", "#83CBEB")) +
+  scale_fill_manual(values=c("#CD3333", "#83CBEB")) +
+  theme(
+    text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 3)
+
+
+data %>% group_by(Baseline) %>% summarise(mean=mean(elapsed), sd=sd(elapsed))
+
+#   Baseline freezing  mean    sd
+# 1 ON LD     27.5  21.5
+# 2 w/o LD    30.5  25.1
+
+data %>% group_by(Baseline) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
+
+
+
 # Step 3: Plot Kaplan-Meier curve
-ggsurvplot(km_fit, data = data, 
+
+# Step 3: Plot Kaplan-Meier curve
+plot <- ggsurvplot(km_fit, data = data, 
            pval = TRUE,          # Add p-value for log-rank test
            conf.int = TRUE,      # Add confidence interval
            #risk.table = TRUE,    # Add risk table to the plot
            palette = c("#CD3333", "#83CBEB"), # Example color palette
            ggtheme = theme_minimal(),
-           xlab=("\n Number of Days From Baseline"),
+           xlab=("\n # months From Baseline"),
            ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
+
 
 # Step 4: Summary and log-rank test to compare the groups
 summary(km_fit)
@@ -1408,23 +1907,58 @@ data <- filtered_data %>% ungroup() %>% select(-anonyme_id...1)
 
 data <- data %>% mutate(B=ifelse(B=="1", "Levodopa-experienced", "Levodopa-naive"))
 
-km_fit <- survfit(Surv(elapsed, freezing ) ~ B   , data = data)
+data <- data %>% mutate(elapsed=elapsed/30.25)
+
+
+
+data %>% group_by(B) %>% summarise(mean=mean(elapsed), sd=sd(elapsed))
+
+data %>% group_by(B) %>% summarise(median=median(elapsed), q1=quantile(elapsed, 0.25), q3=quantile(elapsed, 0.75))
+
+
+
+
+
+unique(data$B)
+
+data <- data %>% rename("Exposure"="B") %>%
+  mutate(Exposure=ifelse(Exposure=="Levodopa-naive", "w/o LD", "Levodopa"))
+
+
+km_fit <- survfit(Surv(elapsed, freezing ) ~ Exposure   , data = data)
 
 summary(km_fit)
 
 km_fit
 
-data %>% group_by(B) %>% count()
+data %>% group_by(Exposure) %>% count()
 
 # Step 3: Plot Kaplan-Meier curve
-ggsurvplot(km_fit, data = data, 
+plot <- ggsurvplot(km_fit, data = data, 
            pval = TRUE,          # Add p-value for log-rank test
            conf.int = TRUE,      # Add confidence interval
            #risk.table = TRUE,    # Add risk table to the plot
            palette = c("#CD3333", "#83CBEB"), # Example color palette
            ggtheme = theme_minimal(),
-           xlab=("\n Number of Days From Baseline"),
+           xlab=("\n # months From Baseline"),
            ylab=("Proportion FOG-free \n")) # Clean theme
+
+
+
+plot <- plot$plot
+
+plot <- plot +
+  theme(
+    text = element_text(size = 16, face = "bold"),  # everything
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 6, height = 6)
 
 # Step 4: Summary and log-rank test to compare the groups
 summary(km_fit)
@@ -1655,6 +2189,60 @@ summary(cox_model_td)
 
 survminer::ggforest(cox_model_td, data = data)
 
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Groups", "ON Levodopa Baseline", "HY& +1")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ Baseline LD + H&Y",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
 
 # Fit survival curves based on the Cox model
 surv_fit <- survival::survfit(cox_model_td, newdata = data.frame(Groups = c(0,1), hy_stage = mean(data$hy_stage)))
@@ -1668,6 +2256,8 @@ survminer::ggsurvplot(surv_fit, data = data,
            xlab = "Time (Days)",
            ylab = "Survival Probability",
            ggtheme = theme_minimal())
+
+
 
 
 # -------
@@ -1916,6 +2506,62 @@ summary(cox_model_td)
 survminer::ggforest(cox_model_td, data = data)
 
 
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Groups", "Levodopa Exposure", "HY& +1")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ H&Y + Future LD Exposure",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
+
+
 # Fit survival curves based on the Cox model
 surv_fit <- survival::survfit(cox_model_td, newdata = data.frame(Groups = c(0,1), hy_stage = mean(data$hy_stage)))
 
@@ -2147,6 +2793,65 @@ summary(cox_model_td)
 
 
 survminer::ggforest(cox_model_td, data = data)
+
+
+
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Groups", "ON Levodopa Baseline", "MDS-UPDRS III (+10p)")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ Baseline LD + MDS-UPDRS III",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
+
+
 
 
 # Fit survival curves based on the Cox model
@@ -2407,6 +3112,65 @@ summary(cox_model_td)
 
 
 survminer::ggforest(cox_model_td, data = data)
+
+
+
+
+
+cox_df <- broom::tidy(cox_model_td, conf.int = TRUE) %>%
+  mutate(
+    HR = exp(estimate),
+    lower = exp(conf.low),
+    upper = exp(conf.high)
+  )
+
+plot <- cox_df %>%
+  mutate(term=ifelse(term=="Groups", "Levodopa Exposure", "MDS-UPDRS III (+10p)")) %>%
+  mutate(
+  label = paste0(
+    "HR ", round(HR, 2),
+    " (", round(lower, 2), "–", round(upper, 2), ")",
+    "\np = ", signif(p.value, 2)
+  )
+) %>%
+  ggplot(aes(x = HR, y = reorder(term, HR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(term, HR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = HR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = HR,
+                 label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  #scale_x_log10() +
+  labs(
+    x = "\n Hazard Ratio FOG ~ MDS-UPDRS III + Future LD Exposure",
+    y = ""
+  ) +
+  theme_minimal() +
+ theme(text = element_text(size = 12, face = "bold"),  # everything
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
+
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
+
+
+
 
 
 
@@ -5233,3 +5997,380 @@ survminer::ggsurvplot(surv_fit, data = data,
 # --------
 
 
+
+
+# FOG as a function of the cumulative number of levodopa years --------------
+
+df_complet <- fread( "df_complet.txt")
+
+
+
+
+df_complet <- df_complet %>% filter(B==1) %>% select(anonyme_id...1) %>% distinct() %>%
+  inner_join(df_complet %>% select(`anonyme_id...1`, `act_datedeb...5`, B, disease_duration , freezing, hoehn_yahr_on ) ) %>%
+  arrange(`anonyme_id...1`, `act_datedeb...5`, B, disease_duration , freezing )
+
+df_complet <- df_complet %>% group_by(`anonyme_id...1`) %>%
+  mutate(`act_datedeb...5`=as.Date(`act_datedeb...5`)) %>%
+  mutate(gap=`act_datedeb...5`-lag(`act_datedeb...5`)) 
+
+df_complet$gap <- as.numeric(df_complet$gap)
+
+unique(df_complet$B)
+
+df_complet %>% group_by(B) %>% count()
+
+df_complet <- df_complet %>% group_by(`anonyme_id...1`) %>% mutate(B2=lag(B)) %>% select(-B) %>%
+  drop_na()
+
+df_complet <- df_complet %>% filter(B2==1)
+
+df_complet <- df_complet %>% group_by(`anonyme_id...1`) %>% mutate(gap2=cumsum(gap)) %>% select( -gap, -`act_datedeb...5`)
+
+df_complet <- df_complet %>% filter(freezing!="")
+
+df_complet <- df_complet %>% ungroup() 
+
+unique(df_complet$freezing) 
+
+df_complet <- df_complet %>% mutate(freezing=ifelse(freezing==">=2","2",freezing))
+
+df_complet <- df_complet %>% mutate(freezing=as.numeric(freezing))
+
+df_complet <- df_complet %>% filter(!is.na(freezing))
+
+df_complet <- df_complet %>% drop_na()
+
+length(unique(df_complet$anonyme_id...1))
+
+
+
+df_complet %>%
+  mutate(freezing=ifelse(freezing==0,0,1)) %>%
+  ggplot(aes(gap2, as.numeric(freezing) )) +
+  geom_smooth()
+
+sum(is.na(df_complet))
+
+cor(df_complet$gap2, as.numeric(df_complet$freezing))
+
+df_complet <- df_complet %>% mutate(freezing=ifelse(freezing==0,0,1)) %>% mutate(freezing=as_factor(freezing))
+df_complet <- df_complet %>% mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on    ))
+
+unique(df_complet$freezing)
+unique(df_complet$hoehn_yahr_on)
+
+df_complet <- df_complet %>% filter(!is.na(hoehn_yahr_on))
+
+df_complet$gap2 <- df_complet$gap2 / 365.25
+df_complet$disease_duration <- df_complet$disease_duration / 1
+
+library(ordinal)
+
+model <- clmm(
+  freezing ~ gap2  + disease_duration  +  hoehn_yahr_on   +
+    (1 | `anonyme_id...1`),
+  data = df_complet,
+  link = "logit"
+)
+
+summary(model)
+
+# Fixed effects
+coef <- c(B = 0.12527        ,
+          disease_duration = 0.26389        ,
+          hoehn_yahr_on = 1.77944)
+
+se <- c(B = 0.02160      ,
+        disease_duration = 0.01412     ,
+        hoehn_yahr_on = 0.06973      )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Cumulative # Years ON Levodopa", "Disease duration (x1 year)", "Hoehn & Yahr ON"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  xlim(0,7) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+
+
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on))
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% group_by(anonyme_id) %>% summarise(mds3_tot_on=max(mds3_tot_on)) 
+
+df_complet_2 <- df_complet %>% left_join(Echellesmdsupdrs_20250106, by=c("anonyme_id...1"="anonyme_id"))
+
+df_complet_2 <- df_complet_2 %>% drop_na()
+
+df_complet_2$mds3_tot_on <- df_complet_2$mds3_tot_on / 10
+
+library(ordinal)
+
+model <- clmm(
+  freezing ~ gap2  + disease_duration  +  hoehn_yahr_on   + mds3_tot_on + 
+    (1 | `anonyme_id...1`),
+  data = df_complet_2,
+  link = "logit"
+)
+
+summary(model)
+
+
+
+
+# Fixed effects
+coef <- c(B = 0.08937    ,
+          disease_duration = 0.37469    ,
+          hoehn_yahr_on = 1.24887    ,
+          mds3_tot_on = 0.41878    )
+
+se <- c(B = 0.06744   ,
+        disease_duration = 0.06065   ,
+        hoehn_yahr_on = 0.30294   ,
+        mds3_tot_on = 0.21379   )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Cumulative # Years ON Levodopa", "Disease duration (x1 year)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  xlim(-1,8) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot_2.svg", plot = plot, width = 10, height = 6)
+
+# ---------
+
+
+# All patient visits - ordered logistic regression all cofounders -----
+df_complet <- fread( "df_complet.txt")
+
+df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
+
+
+Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
+
+names(Echellesmdsupdrs_20250106)
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% select(anonyme_id, redcap_repeat_instance, mds3_tot_on, mds3_blocage_on)
+
+sum(is.na(Echellesmdsupdrs_20250106$mds3_blocage_on))
+sum(is.na(Echellesmdsupdrs_20250106$mds3_blocage_off))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_tot_on ))
+
+Echellesmdsupdrs_20250106 <- Echellesmdsupdrs_20250106 %>% filter(!is.na(mds3_blocage_on ))
+
+
+
+df_complet <- df_complet %>% inner_join(Echellesmdsupdrs_20250106, by=c("anonyme_id...25"="anonyme_id", "redcap_repeat_instance"="redcap_repeat_instance"))
+
+
+unique(df_complet$mds3_blocage_on)
+
+test <- df_complet %>% select( `anonyme_id...25`, B, mds3_blocage_on, disease_duration, hoehn_yahr_on, mds3_tot_on) %>%
+    mutate(hoehn_yahr_on=as.numeric(hoehn_yahr_on)) %>%
+  filter(mds3_blocage_on!="ND") %>%
+  mutate(mds3_blocage_on=as.numeric(mds3_blocage_on)) %>% drop_na() 
+
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5)
+test <- test %>% mutate(mds3_tot_on=mds3_tot_on/10)
+
+
+#test <- test %>% mutate(mds3_blocage_on=ifelse(mds3_blocage_on==0,0,1))
+
+library(ordinal)
+
+model <- clmm(
+  as.factor(mds3_blocage_on) ~ B + disease_duration + 
+    hoehn_yahr_on + mds3_tot_on +
+    (1 | `anonyme_id...25`),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+
+# Fixed effects
+coef <- c(B = -0.6025        ,
+          disease_duration = 0.5018        ,
+          hoehn_yahr_on = 3.1009        ,
+          mds3_tot_on = 1.2958        )
+
+se <- c(B = 0.4970    ,
+        disease_duration = 0.2209       ,
+        hoehn_yahr_on = 0.4789    ,
+        mds3_tot_on = 0.2214    )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Levodopa", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  labs(
+    x = "\n Adjusted Odds Ratio (3.11 FOG ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+# ------------
