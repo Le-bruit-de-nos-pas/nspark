@@ -128,6 +128,30 @@ sc_complete_missing %>%
 
 # Also remove if too many items missing: TBD
 
+# sc <- sc %>%
+#   mutate(
+#     exclude_complete_tremor = tremor_items_missing == 11,
+#     exclude_complete_non_tremor = non_tremor_items_missing == 35,
+#     exclude_complete_eleven = eleven_item_missing == 11,
+#     exclude_complete_partIII = mds_partIII_missing == 33,
+#     
+#     exclude_excessive_tremor = tremor_items_missing > 2,  # >20% missing
+#     exclude_excessive_non_tremor = non_tremor_items_missing > 7,  # >20% of 35 items
+#     exclude_excessive_eleven = eleven_item_missing > 2,  # >20% missing
+#     exclude_excessive_mds_III = mds_partIII_missing > 7,
+#     
+#     exclude_from_primary = exclude_complete_tremor | 
+#                            exclude_complete_non_tremor | 
+#                            exclude_complete_eleven |
+#                            exclude_excessive_tremor |
+#                            exclude_excessive_non_tremor |
+#                            exclude_excessive_eleven | 
+#                            exclude_complete_partIII | 
+#                            exclude_excessive_mds_III
+#   )
+# 
+# table(sc$exclude_from_primary)
+
 sc <- sc %>%
   mutate(
     exclude_complete_tremor = tremor_items_missing == 11,
@@ -143,11 +167,7 @@ sc <- sc %>%
     exclude_from_primary = exclude_complete_tremor | 
                            exclude_complete_non_tremor | 
                            exclude_complete_eleven |
-                           exclude_excessive_tremor |
-                           exclude_excessive_non_tremor |
-                           exclude_excessive_eleven | 
-                           exclude_complete_partIII | 
-                           exclude_excessive_mds_III
+                           exclude_complete_partIII 
   )
 
 table(sc$exclude_from_primary)
@@ -200,13 +220,31 @@ sc_longitudinal <- sc_primary_analysis %>%
 
 cat("Subjects with all 3 visits:", n_distinct(sc_longitudinal$USUBJID)) # 137
 
+cat("Subjects with all 3 visits:", n_distinct(sc_primary_analysis$USUBJID)) # 156
+
+sc_primary_analysis %>%
+  select(USUBJID, VISITNUM) %>% distinct() %>%
+  group_by(VISITNUM) %>% count()
+
+sc_primary_analysis %>%
+  select(USUBJID, VISITNUM) %>% distinct() %>% 
+  mutate(exp=1) %>% spread(key=VISITNUM, value=exp) %>%
+  group_by(`2`, `8`) %>% count()
+
+sc_primary_analysis %>%
+  select(USUBJID, VISITNUM) %>% distinct() %>% 
+  mutate(exp=1) %>% spread(key=VISITNUM, value=exp) %>%
+  group_by(`2`, `6`) %>% count()
+
+
+
 # makes sense, in line with the lixipark trial paper
-sc_longitudinal %>% select(USUBJID, VISITNUM, mds_partIII_total) %>%
+sc_primary_analysis %>% select(USUBJID, VISITNUM, mds_partIII_total) %>%
   inner_join(groupe) %>% drop_na() %>%
   group_by(VISITNUM, RAN_GRP_LIB) %>% summarise(mean=mean(mds_partIII_total), sd=sd(mds_partIII_total))
 
 
-sc_wide <- sc_longitudinal %>%
+sc_wide <- sc_primary_analysis %>%
   select(USUBJID, VISITNAM, 
          tremor_mod_scale, non_tremor_mod_scale, eleven_item_mod_scale,
          mds_partIII_total) %>%
@@ -280,7 +318,6 @@ plot_primary <- temp_long %>%
   scale_color_manual(values = c("1 - Placebo" = "#7c626c", "2 - Lixisenatide" = "#32435d")) +
   labs(
     title = "MDS-UPDRS Scores \nOver Time",
-    subtitle = paste0("n = ", n_distinct(temp_long$USUBJID), " subjects"),
     x = "",
     y = "Score \n",
     fill = "Treatment",
@@ -306,6 +343,9 @@ print(plot_primary)
 
 
 ggsave(file="../out/4_scales_3_time_points_exact_score.svg", plot=plot_primary, width=3.5, height=10)
+
+
+
 
 
 
@@ -375,8 +415,24 @@ summary_comparisons %>%
          placebo_mean_sd, placebo_median_iqr,
          lixi_mean_sd, lixi_median_iqr,
          p_value_formatted) %>%
-  print(n = Inf)
+  print(n = Inf) %>%
+  mutate(placebo_mean_sd = paste0(placebo_mean_sd , paste0(" | ", placebo_median_iqr ))) %>% select(-placebo_median_iqr) %>%
+  mutate(lixi_mean_sd  = paste0(lixi_mean_sd  , paste0(" | ", lixi_median_iqr  ))) %>% select(-lixi_median_iqr ) 
 
+#    scale              visit    placebo_mean_sd             lixi_mean_sd                  p_value_formatted
+#    <fct>              <fct>    <chr>                       <chr>                         <chr>            
+#  1 Tremor Scale       Baseline 4.1 ± 3.3 | 3 [1-6]         3.2 ± 2.8 | 2 [1-5]           0.09             
+#  2 Tremor Scale       Month 6  4.8 ± 3.9 | 4 [2-7]         3 ± 2.8 | 2 [1-5]             0.006            
+#  3 Tremor Scale       Month 12 4.9 ± 4.1 | 4 [1-8]         3.6 ± 3.2 | 3 [1-5]           0.07             
+#  4 Non-Tremor Scale   Baseline 17.1 ± 9.3 | 16 [9-24]      16.7 ± 8.5 | 17.5 [11-21]     0.89             
+#  5 Non-Tremor Scale   Month 6  18.4 ± 10.8 | 17 [10.2-25]  17.9 ± 10.9 | 16.5 [9.8-24.2] 0.68             
+#  6 Non-Tremor Scale   Month 12 20.1 ± 11.5 | 20 [10-27]    17.9 ± 10.4 | 17 [12-21]      0.15             
+#  7 11-Item Scale      Baseline 4.4 ± 4.2 | 3 [1-7]         4.3 ± 3.3 | 4 [2-7]           0.56             
+#  8 11-Item Scale      Month 6  4.9 ± 4.6 | 3 [1-8]         4.8 ± 4.3 | 4 [1.8-6]         0.89             
+#  9 11-Item Scale      Month 12 5.6 ± 4.6 | 5 [2-8]         5.7 ± 4.9 | 5 [2-8]           0.94             
+# 10 MDS-UPDRS Part III Baseline 15.8 ± 7.8 | 16 [10-21]     14.8 ± 7.3 | 13 [10-19]       0.36             
+# 11 MDS-UPDRS Part III Month 6  17.3 ± 9.2 | 17.5 [11-21.8] 15.4 ± 8.4 | 14.5 [9-20.2]    0.16             
+# 12 MDS-UPDRS Part III Month 12 18.5 ± 9.9 | 18 [11.8-23.2] 14.9 ± 7.4 | 14 [9-20]        0.02 
 
 
 # First, calculate summary statistics for plotting
@@ -410,7 +466,6 @@ plot_primary_bars <- ggplot(plot_data_means,
   scale_fill_manual(values = c("1 - Placebo" = "#7c626c", "2 - Lixisenatide" = "#32435d")) +
   labs(
     title = "MDS-UPDRS Scores\nOver Time",
-    subtitle = paste0("n = ", n_distinct(temp_long$USUBJID), " subjects"),
     x = "",
     y = "Score\n",
     fill = "Treatment"
@@ -471,6 +526,7 @@ names(sc_wide)
 
 sc_wide <- sc_wide %>% inner_join(groupe %>% select(USUBJID, RAN_GRP_LIB) )
 
+length(unique(sc_wide$USUBJID))
 
 #  Shapiro-Wilk test for all change scores
 normality_tests <- sc_wide %>%
@@ -549,6 +605,13 @@ delta_long
 
 # Check counts
 table(delta_long$scale, delta_long$timepoint)
+
+  #                    Month 6 Month 12
+  # 11-Item Scale          141      152
+  # MDS-UPDRS Part III     141      152
+  # Non-Tremor Scale       141      152
+  # Tremor Scale           141      152
+
 table(delta_long$RAN_GRP_LIB, delta_long$timepoint)
 
 # Summary statistics for change scores
@@ -605,6 +668,9 @@ desired_scale_order <- c("MDS-UPDRS Part III", "Non-Tremor Scale", "Tremor Scale
 delta_long <- delta_long %>%
   mutate(scale = factor(scale, levels = desired_scale_order))
 
+
+length(unique(delta_long$USUBJID))
+
 plot_delta_box <- ggplot(delta_long, 
                          aes(x = timepoint, y = change_score, 
                              fill = RAN_GRP_LIB, colour = RAN_GRP_LIB)) +
@@ -616,7 +682,6 @@ plot_delta_box <- ggplot(delta_long,
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 1.0) +
   labs(
     title = "Change in Scores from Baseline",
-    subtitle = paste0("n = ", n_distinct(delta_long$USUBJID), " subjects"),
     x = "",
     y = "Change Score\n(positive = worsening)\n",
     fill = "Treatment",
@@ -670,7 +735,6 @@ plot_delta_bars <- ggplot(delta_summary,
   scale_fill_manual(values = c("1 - Placebo" = "#7c626c", "2 - Lixisenatide" = "#32435d")) +
   labs(
     title = "Change in Scores from Baseline",
-    subtitle = paste0("n = ", n_distinct(delta_long$USUBJID), " subjects"),
     x = "",
     y = "Change Score\n(positive = worsening)\n",
     fill = "Treatment"
@@ -761,8 +825,8 @@ dm_age %>%
   pivot_wider(names_from = RAN_GRP_LIB, values_from = n)
 
 #   age_group `1 - Placebo` `2 - Lixisenatide`
-# 1 <60                  34                 41
-# 2 ≥60                  36                 26
+# 1 <60                  35                 43
+# 2 ≥60                  40                 34
 
 dm_age %>%
   group_by(scale, RAN_GRP_LIB, age_group) %>%
@@ -770,22 +834,22 @@ dm_age %>%
   print(n = Inf)
 
 #  scale              RAN_GRP_LIB      age_group     n
-#  1 MDS-UPDRS Part III 1 - Placebo      <60          34
-#  2 MDS-UPDRS Part III 1 - Placebo      ≥60          36
-#  3 MDS-UPDRS Part III 2 - Lixisenatide <60          41
-#  4 MDS-UPDRS Part III 2 - Lixisenatide ≥60          26
-#  5 Non-Tremor Scale   1 - Placebo      <60          34
-#  6 Non-Tremor Scale   1 - Placebo      ≥60          36
-#  7 Non-Tremor Scale   2 - Lixisenatide <60          41
-#  8 Non-Tremor Scale   2 - Lixisenatide ≥60          26
-#  9 Tremor Scale       1 - Placebo      <60          34
-# 10 Tremor Scale       1 - Placebo      ≥60          36
-# 11 Tremor Scale       2 - Lixisenatide <60          41
-# 12 Tremor Scale       2 - Lixisenatide ≥60          26
-# 13 11-Item Scale      1 - Placebo      <60          34
-# 14 11-Item Scale      1 - Placebo      ≥60          36
-# 15 11-Item Scale      2 - Lixisenatide <60          41
-# 16 11-Item Scale      2 - Lixisenatide ≥60          26
+#  1 MDS-UPDRS Part III 1 - Placebo      <60          35
+#  2 MDS-UPDRS Part III 1 - Placebo      ≥60          40
+#  3 MDS-UPDRS Part III 2 - Lixisenatide <60          43
+#  4 MDS-UPDRS Part III 2 - Lixisenatide ≥60          34
+#  5 Non-Tremor Scale   1 - Placebo      <60          35
+#  6 Non-Tremor Scale   1 - Placebo      ≥60          40
+#  7 Non-Tremor Scale   2 - Lixisenatide <60          43
+#  8 Non-Tremor Scale   2 - Lixisenatide ≥60          34
+#  9 Tremor Scale       1 - Placebo      <60          35
+# 10 Tremor Scale       1 - Placebo      ≥60          40
+# 11 Tremor Scale       2 - Lixisenatide <60          43
+# 12 Tremor Scale       2 - Lixisenatide ≥60          34
+# 13 11-Item Scale      1 - Placebo      <60          35
+# 14 11-Item Scale      1 - Placebo      ≥60          40
+# 15 11-Item Scale      2 - Lixisenatide <60          43
+# 16 11-Item Scale      2 - Lixisenatide ≥60          34
 
 
 
@@ -826,17 +890,16 @@ age_within_treatment <- dm_age %>%
 
 print(age_within_treatment, n = Inf)
 
-#   scale   RAN_GRP_LIB n_young n_old young_mean old_mean difference conf_low conf_high p_value p_formatted sig_star
-#   <fct>   <chr>         <int> <int>      <dbl>    <dbl>      <dbl>    <dbl>     <dbl>   <dbl> <chr>       <chr>   
-# 1 MDS-UP… 1 - Placebo      34    36       4.12     1.78          2       -1         5  0.176  0.18        ""      
-# 2 MDS-UP… 2 - Lixise…      41    26      -0.32     0.5          -1       -5         3  0.558  0.56        ""      
-# 3 Non-Tr… 1 - Placebo      34    36       4.26     2.69          2       -2         5  0.365  0.36        ""      
-# 4 Non-Tr… 2 - Lixise…      41    26       0.98     1.27          0       -4         3  0.954  0.95        ""      
-# 5 Tremor… 1 - Placebo      34    36       1.44     0.36          1        0         2  0.0934 0.09        ""      
-# 6 Tremor… 2 - Lixise…      41    26       0.39     0.19          0       -1         1  0.773  0.77        ""      
-# 7 11-Ite… 1 - Placebo      34    36       1.68     1.31          0       -1         2  0.700  0.7         ""      
-# 8 11-Ite… 2 - Lixise…      41    26       1.54     0.77          1       -1         2  0.384  0.38        ""      
-
+#   scale         RAN_GRP_LIB n_young n_old young_mean old_mean difference conf_low conf_high p_value p_formatted
+#   <fct>         <chr>         <int> <int>      <dbl>    <dbl>      <dbl>    <dbl>     <dbl>   <dbl> <chr>      
+# 1 MDS-UPDRS Pa… 1 - Placebo      35    40       4.66     1.62          3        0         6  0.0828 0.08       
+# 2 MDS-UPDRS Pa… 2 - Lixise…      43    34      -0.56     0.62         -1       -5         2  0.456  0.46       
+# 3 Non-Tremor S… 1 - Placebo      35    40       4.74     2.55          2       -1         5  0.223  0.22       
+# 4 Non-Tremor S… 2 - Lixise…      43    34       0.67     1.5           0       -4         3  0.967  0.97       
+# 5 Tremor Scale  1 - Placebo      35    40       1.54     0.28          1        0         2  0.0384 0.04       
+# 6 Tremor Scale  2 - Lixise…      43    34       0.33     0.53          0       -1         1  0.770  0.77       
+# 7 11-Item Scale 1 - Placebo      35    40       1.66     1.12          0       -1         2  0.704  0.7        
+# 8 11-Item Scale 2 - Lixise…      43    34       1.42     1.15          0       -1         2  0.657  0.66   
 
 age_desc <- dm_age %>%
   group_by(scale, RAN_GRP_LIB, age_group) %>%
@@ -859,17 +922,6 @@ print(age_desc, n = Inf)
 age_desc %>% select(scale, RAN_GRP_LIB, age_group, mean_sd, median_iqr) %>%
   mutate(mean_sd=paste0(mean_sd, paste0(" | ", median_iqr))) %>% select(-median_iqr) %>%
   spread(key=age_group, value=mean_sd)
-
-#     scale              RAN_GRP_LIB      `<60`                  `≥60`                   
-# 1 MDS-UPDRS Part III 1 - Placebo      4.1 ± 6.6 | 4 [-0.8-7] 1.8 ± 6.6 | 1 [-2-6.2]  
-# 2 MDS-UPDRS Part III 2 - Lixisenatide -0.3 ± 7.1 | -1 [-6-5] 0.5 ± 6.8 | 0.5 [-3.8-6]
-# 3 Non-Tremor Scale   1 - Placebo      4.3 ± 7.3 | 3 [0.2-9]  2.7 ± 6.9 | 3 [-2-8]    
-# 4 Non-Tremor Scale   2 - Lixisenatide 1 ± 7.1 | 1 [-3-5]     1.3 ± 7.4 | 0 [-2-6.5]  
-# 5 Tremor Scale       1 - Placebo      1.4 ± 2.7 | 1 [0-3]    0.4 ± 2 | 0 [-1-1]      
-# 6 Tremor Scale       2 - Lixisenatide 0.4 ± 2.3 | 0 [-1-2]   0.2 ± 2.2 | 0 [-0.8-1]  
-# 7 11-Item Scale      1 - Placebo      1.7 ± 3.3 | 1 [0-4.8]  1.3 ± 2.6 | 1 [-0.2-3]  
-# 8 11-Item Scale      2 - Lixisenatide 1.5 ± 3.2 | 1 [0-2]    0.8 ± 3.9 | 1 [-1-2] 
-
 
 
 
@@ -908,6 +960,9 @@ calc_smd <- function(data, group_name, timepoint_val) {
     )
   )
 }
+
+
+length(unique(delta_long$USUBJID))
 
 # Calculate SMD for each scale, treatment group, and timepoint
 smd_results <- delta_long %>%
@@ -1042,12 +1097,37 @@ smd_overall <- delta_long %>%
 # View results
 print(smd_overall, n = Inf)
 
+#   scale              timepoint     n mean_change sd_change   smd se_smd smd_ci_lower smd_ci_upper smd_magnitude smd_display                    
+#   <fct>              <fct>     <dbl>       <dbl>     <dbl> <dbl>  <dbl>        <dbl>        <dbl> <chr>         <chr>                          
+# 1 MDS-UPDRS Part III Month 6     141       1.09       5.97 0.183  0.085        0.017        0.349 negligible    0.183 [0.017-0.349] negligible 
+# 2 MDS-UPDRS Part III Month 12    152       1.48       7.06 0.21   0.082        0.049        0.37  small         0.21 [0.049-0.37] small        
+# 3 Non-Tremor Scale   Month 6     141       1.43       6.57 0.217  0.085        0.05         0.384 small         0.217 [0.05-0.384] small       
+# 4 Non-Tremor Scale   Month 12    152       2.29       7.41 0.309  0.083        0.146        0.472 small         0.309 [0.146-0.472] small      
+# 5 Tremor Scale       Month 6     141       0.326      2.10 0.155  0.085       -0.011        0.321 negligible    0.155 [-0.011-0.321] negligible
+# 6 Tremor Scale       Month 12    152       0.638      2.35 0.271  0.083        0.109        0.433 small         0.271 [0.109-0.433] small      
+# 7 11-Item Scale      Month 6     141       0.553      3.01 0.184  0.085        0.017        0.35  negligible    0.184 [0.017-0.35] negligible  
+# 8 11-Item Scale      Month 12    152       1.34       3.39 0.394  0.084        0.229        0.559 small         0.394 [0.229-0.559] small  
+
+
 # Create a nice table
 smd_overall_table <- smd_overall %>%
   select(scale, timepoint, n, mean_change, sd_change, smd_display) %>%
   arrange(scale, timepoint)
 
 print(smd_overall_table, n = Inf)
+
+
+#   scale              timepoint     n mean_change sd_change smd_display                    
+#   <fct>              <fct>     <dbl>       <dbl>     <dbl> <chr>                          
+# 1 MDS-UPDRS Part III Month 6     141       1.09       5.97 0.183 [0.017-0.349] negligible 
+# 2 MDS-UPDRS Part III Month 12    152       1.48       7.06 0.21 [0.049-0.37] small        
+# 3 Non-Tremor Scale   Month 6     141       1.43       6.57 0.217 [0.05-0.384] small       
+# 4 Non-Tremor Scale   Month 12    152       2.29       7.41 0.309 [0.146-0.472] small      
+# 5 Tremor Scale       Month 6     141       0.326      2.10 0.155 [-0.011-0.321] negligible
+# 6 Tremor Scale       Month 12    152       0.638      2.35 0.271 [0.109-0.433] small      
+# 7 11-Item Scale      Month 6     141       0.553      3.01 0.184 [0.017-0.35] negligible  
+# 8 11-Item Scale      Month 12    152       1.34       3.39 0.394 [0.229-0.559] small 
+
 
 # Plot comparing scales directly
 smd_overall_plot_data <- smd_overall %>%
@@ -1082,7 +1162,7 @@ smd_overall_plot <- ggplot(smd_overall_plot_data,
     subtitle = "Cohen's d (positive = worsening)",
     x = "\n Standardized Mean Difference (95% CI)",
     y = "",
-    color = "Treatment",
+    color = "Timepoint",
     shape = "Timepoint"
   ) +
   scale_x_continuous(breaks = c(-0.8, -0.5, -0.2, 0, 0.2, 0.5, 0.8), limits = c(-1, 1)) +
@@ -1121,10 +1201,10 @@ print(scale_ranking, n = Inf)
 
 
 #  scale              abs_smd  rank smd_magnitude
-# 1 11-Item Scale        0.427     1 small        
-# 2 Non-Tremor Scale     0.319     2 small        
-# 3 Tremor Scale         0.259     3 small        
-# 4 MDS-UPDRS Part III   0.215     4 small   
+# 1 11-Item Scale        0.394     1 small        
+# 2 Non-Tremor Scale     0.309     2 small        
+# 3 Tremor Scale         0.271     3 small        
+# 4 MDS-UPDRS Part III   0.21      4 small 
 
 
 
