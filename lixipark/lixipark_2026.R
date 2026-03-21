@@ -926,6 +926,15 @@ age_desc %>% select(scale, RAN_GRP_LIB, age_group, mean_sd, median_iqr) %>%
 
 
 
+
+
+
+
+
+
+
+
+
 library(effsize)  # for Cohen's d (still relevant for effect size)
 
 # Function to calculate standardized mean difference (Cohen's d for paired samples)
@@ -962,7 +971,7 @@ calc_smd <- function(data, group_name, timepoint_val) {
 }
 
 
-length(unique(delta_long$USUBJID))
+length(unique(<s$USUBJID))
 
 # Calculate SMD for each scale, treatment group, and timepoint
 smd_results <- delta_long %>%
