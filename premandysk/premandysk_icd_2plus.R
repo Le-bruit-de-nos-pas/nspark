@@ -18,9 +18,16 @@ treat_pats_groups <- admin %>% select(SUBJID, ADMREMNU) %>% drop_na() %>% distin
   left_join(rando %>% select(RDNUM, GRP) %>% distinct(), by=c("ADMREMNU"="RDNUM")) %>%
   mutate(TREATMENT=ifelse(GRP=="A", "Amantadine", "Placebo"))
 
-fwrite(treat_pats_groups, "../out/treat_pats_groups.txt")
+#fwrite(treat_pats_groups, "../out/treat_pats_groups.txt")
 
 ecmp <- read_sas("../data/ecmp.sas7bdat")
+
+ecmp %>% filter(!is.na(ECMPDT)) %>%
+  select(SUBJID, VISIT) %>% distinct() %>%
+  mutate(exp=1) %>% spread(key=VISIT, value=exp)  %>%
+  group_by(`8`, `16`) %>% count()
+ 
+
 
 ecmp <- ecmp %>% 
   mutate(
@@ -37,6 +44,60 @@ ecmp <- ecmp %>%
 ecmp <- ecmp %>% filter(VISIT<=8|VISIT==16) %>% filter(VISIT>=2) %>% mutate(VISIT=ifelse(VISIT==16,8,VISIT))
 
 ecmp <- ecmp %>% filter(!is.na(ECMPDT))
+
+
+ecmp %>%
+  mutate(VISIT=ifelse(VISIT==2, 0,
+                      ifelse(VISIT==3, 3, 
+                             ifelse(VISIT==5,9,18)))) %>%
+  group_by(TREATMENT, VISIT) %>% summarise(mean=mean(ecmp_icd_binary))
+
+
+ecmp %>%
+  mutate(VISIT=ifelse(VISIT==2, 0,
+                      ifelse(VISIT==3, 3, 
+                             ifelse(VISIT==5,9,18)))) %>%
+  group_by(TREATMENT, VISIT) %>% summarise(mean=mean(ecmp_icb_binary))
+
+
+# dysk_pats <- fread("../out/dysk_pats.txt")
+# 
+# dysk_pats %>% filter(VISIT==18) %>% group_by(TREATMENT, MDS68) %>% count()
+# 
+# ecmp %>%
+#   mutate(VISIT=ifelse(VISIT==2, 0,
+#                       ifelse(VISIT==3, 3, 
+#                              ifelse(VISIT==5,9,18)))) %>%
+#   mutate(SUBJID=as.numeric(SUBJID)) %>%
+#   inner_join(dysk_pats %>% filter(VISIT==18) %>% select(SUBJID , MDS68)) %>%
+#   group_by(TREATMENT, VISIT, MDS68) %>% filter(VISIT==18) %>%
+#   summarise(mean=mean(ecmp_icd_binary))
+ 
+
+# ecmp %>%
+#   mutate(VISIT=ifelse(VISIT==2, 0,
+#                       ifelse(VISIT==3, 3, 
+#                              ifelse(VISIT==5,9,18)))) %>%
+#   mutate(SUBJID=as.numeric(SUBJID)) %>%
+#   inner_join(dysk_pats %>% filter(VISIT==18) %>% select(SUBJID , MDS68)) %>%
+#   group_by(TREATMENT, VISIT, MDS68) %>% filter(VISIT==18) %>%
+#   summarise(mean=mean(ecmp_icb_binary))
+
+
+# ecmp %>%
+#   mutate(VISIT=ifelse(VISIT==2, 0,
+#                       ifelse(VISIT==3, 3, 
+#                              ifelse(VISIT==5,9,18)))) %>%
+#   mutate(SUBJID=as.numeric(SUBJID)) %>%
+#   inner_join(dysk_pats %>% filter(VISIT==18) %>% select(SUBJID , MDS68)) %>%
+#   group_by(TREATMENT, VISIT, MDS68) %>% filter(VISIT==18) %>%
+#   mutate(ecmp_hypodopa=ifelse(ecmp_hypodopa>0,1,0)) %>%
+#   summarise(mean=mean(ecmp_hypodopa))
+
+
+
+
+
 
 plot <- ecmp %>% group_by(VISIT) %>% count()  %>%
   mutate(VISIT=ifelse(VISIT==2, 0,
@@ -177,6 +238,8 @@ surv_data <- surv_data %>%
     time_months = as.numeric(VISIT - VISIT_baseline )
   )
 
+
+fwrite(surv_data, "surv_data.csv")
 
 range(surv_data$time_months)
 
@@ -453,4 +516,10 @@ data <- ecmp %>% inner_join(treat_pats_groups) %>%
                       ifelse(VISIT==3, 3, 
                              ifelse(VISIT==5,9,18)))) %>%
   rename("Treatment"="TREATMENT") %>% select(Treatment, SUBJID, VISIT, ecmp_icd_severity)
- 
+
+
+
+surv_data 
+
+
+

@@ -274,7 +274,6 @@ cox.zph(cox1)
 # GLOBAL    0.528  1 0.47
 
 
-length(unique(ecmp_longitudinal$SUBJID)) # 206
 
 ecmp_longitudinal <- ecmp %>%
   mutate(VISIT=ifelse(VISIT==2,0,
@@ -414,30 +413,54 @@ plot
 ggsave(file = "../out/stacked_icd_sev.svg", plot = plot, width = 8, height = 5)
 
 
-plot <- ecmp %>% inner_join(treat_pats_groups) %>%
-   mutate(VISIT=ifelse(VISIT==2,0,
-                      ifelse(VISIT==3, 3, 
-                             ifelse(VISIT==5,9,18)))) %>%
+
+
+plot <- ecmp %>% 
+  inner_join(treat_pats_groups) %>%
+  mutate(VISIT = ifelse(VISIT==2,0,
+                        ifelse(VISIT==3,3,
+                               ifelse(VISIT==5,9,18)))) %>%
   rename("Treatment"="TREATMENT") %>%
-  mutate(VISIT=as.factor(VISIT)) %>%
-  ggplot(aes(VISIT , ecmp_icd_severity, colour=Treatment, fill=Treatment)) +
-  geom_boxplot(alpha=0.5, notch=TRUE, outliers = FALSE) +
-  geom_jitter(alpha=0.6, size=0.5, stroke=2, shape=1, width = 0.3, height=0.1) +
+  mutate(VISIT = as.factor(VISIT)) %>%
+  
+  ggplot(aes(x = VISIT, y = ecmp_icd_severity, fill = Treatment, colour = Treatment)) +
+  
+  stat_summary(
+    fun = mean,
+    geom = "bar",
+    position = position_dodge(width = 0.8),
+    width = 0.7,
+    alpha = 0.7
+  ) +
+   stat_summary(
+  fun.data = mean_se,
+  geom = "linerange",
+  position = position_dodge(width = 0.8),
+  linewidth = 2.5,
+  alpha = 0.5,
+  lineend = "round"
+) +
   theme_minimal() +
-  scale_colour_manual(values=c("#aa3951", "#2f3941")) +
-  scale_fill_manual(values=c("#aa3951", "#2f3941")) +
-  theme(text = element_text(face = "bold"),
+  scale_fill_manual(values = c("#aa3951", "#2f3941")) +
+    scale_colour_manual(values = c("#aa3951", "#2f3941")) +
+  theme(
+    text = element_text(face = "bold"),
     axis.text = element_text(size = 10),
     axis.title = element_text(size = 10),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    legend.position = "top") +
-  labs(title = "ECMP-based ICD [4-item] Distribution",
-       x = "\n Number of Months From Baseline",
-       y = "ICD Total Score \n",
-       fill = "Treatment") 
+    legend.position = "top"
+  ) +
+  labs(
+    title = "ECMP-based ICD [4-item]",
+    x = "\n Number of Months From Baseline",
+    y = "Mean ICD Total Score ± SEM\n",
+    fill = "Treatment", colour="Treatment"
+  )
 
-ggsave(file = "../out/box_icd_sev.svg", plot = plot, width = 4, height = 5)
+plot
+
+ggsave(file = "../out/bar_icd_sev.svg", plot = plot, width = 4, height = 5)
 
 
 data <- ecmp %>% inner_join(treat_pats_groups) %>%

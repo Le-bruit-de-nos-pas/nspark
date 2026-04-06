@@ -447,3 +447,53 @@ plot <- ecmp %>% inner_join(treat_pats_groups) %>%
 plot
 
 ggsave(file = "../out/box_icb_sev.svg", plot = plot, width = 4, height = 5)
+
+
+
+
+plot <- ecmp %>% 
+  inner_join(treat_pats_groups) %>%
+  mutate(VISIT = ifelse(VISIT==2,0,
+                        ifelse(VISIT==3,3,
+                               ifelse(VISIT==5,9,18)))) %>%
+  rename("Treatment"="TREATMENT") %>%
+  mutate(VISIT = as.factor(VISIT)) %>%
+  ggplot(aes(x = VISIT, y = ecmp_icb_severity, fill = Treatment, colour = Treatment)) +
+  stat_summary(
+    fun = mean,
+    geom = "bar",
+    position = position_dodge(width = 0.8),
+    width = 0.7,
+    alpha = 0.7
+  ) +
+     stat_summary(
+  fun.data = mean_se,
+  geom = "linerange",
+  position = position_dodge(width = 0.8),
+  linewidth = 2.5,
+  alpha = 0.5,
+  lineend = "round"
+) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#aa3951", "#2f3941")) +
+    scale_colour_manual(values = c("#aa3951", "#2f3941")) +
+
+  theme(
+    text = element_text(face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  ) +
+  
+  labs(
+    title = "ECMP-based ICB [12-item]",
+    x = "\n Number of Months From Baseline",
+    y = "Mean ICB Total Score ± SEM\n",
+    fill = "Treatment", colour = "Treatment"
+  )
+
+plot
+
+ggsave(file = "../out/box_icb_sev.svg", plot = plot, width = 4, height = 5)

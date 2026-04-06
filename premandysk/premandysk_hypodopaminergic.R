@@ -161,7 +161,7 @@ plot <- plot_data %>%
     labs(title = "ECMP-based Hypodopaminergic [5-item] Severity Distribution",
        x = "\n Number of Months From Baseline",
        y = "Cohort Proportion \n",
-       fill = "Hypodopaminergic Total Severity") +
+       fill = "Total Severity") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     scale_fill_manual(values=c(  "#c1cfd1", "#89949C", "#4E5A63", "#2F3941",  "#C45E74", "#aa3951" )) +
   theme_minimal() +
@@ -207,7 +207,57 @@ plot <- ecmp %>% inner_join(treat_pats_groups) %>%
 
 plot
 
+
+
 ggsave(file = "../out/box_icb_sev.svg", plot = plot, width = 5, height = 5)
+
+
+plot <- ecmp %>% 
+  inner_join(treat_pats_groups) %>%
+  mutate(VISIT = ifelse(VISIT==2,0,
+                        ifelse(VISIT==3,3,
+                               ifelse(VISIT==5,9,18)))) %>%
+  rename("Treatment"="TREATMENT") %>%
+  mutate(VISIT = as.factor(VISIT)) %>%
+  ggplot(aes(x = VISIT, y = ecmp_hypodopa, fill = Treatment, colour = Treatment)) +
+  stat_summary(
+    fun = mean,
+    geom = "bar",
+    position = position_dodge(width = 0.8),
+    width = 0.7,
+    alpha = 0.7
+  ) +
+   stat_summary(
+  fun.data = mean_se,
+  geom = "linerange",
+  position = position_dodge(width = 0.8),
+  linewidth = 2.5,
+  alpha = 0.5,
+  lineend = "round"
+) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#aa3951", "#2f3941")) +
+    scale_colour_manual(values = c("#aa3951", "#2f3941")) +
+  theme(
+    text = element_text(face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  ) +
+  labs(
+    title = "ECMP-based Hypodopaminergic [5-item]",
+    x = "\n Number of Months From Baseline",
+    y = "Mean Hypodopaminergic Score ± SEM\n",
+    fill = "Treatment", colour = "Treatment"
+  )
+
+plot
+
+
+ggsave(file = "../out/box_icb_sev.svg", plot = plot, width = 5, height = 5)
+
 
 
 ecmp_longitudinal <- ecmp_longitudinal %>%
@@ -216,33 +266,49 @@ ecmp_longitudinal <- ecmp_longitudinal %>%
   ungroup()
 
 
-plot <- ecmp_longitudinal %>% inner_join(treat_pats_groups) %>%
+
+plot <- ecmp_longitudinal %>% 
+  inner_join(treat_pats_groups) %>%
   rename("Treatment"="TREATMENT") %>%
-  mutate(VISIT=as.factor(VISIT)) %>%
-  ggplot(aes(VISIT , change, colour=Treatment, fill=Treatment)) +
-  geom_boxplot(alpha=0.5, notch=TRUE, outliers = FALSE) +
-  geom_jitter(alpha=0.6, size=0.5, stroke=2, shape=1, width = 0.3, height=0.1) +
+  mutate(VISIT = as.factor(VISIT)) %>%
+  ggplot(aes(x = VISIT, y = change, fill = Treatment, colour = Treatment)) +
+  stat_summary(
+    fun = mean,
+    geom = "bar",
+    position = position_dodge(width = 0.8),
+    width = 0.7,
+    alpha = 0.7
+  ) +
+   stat_summary(
+  fun.data = mean_se,
+  geom = "linerange",
+  position = position_dodge(width = 0.8),
+  linewidth = 2.5,
+  alpha = 0.5,
+  lineend = "round"
+) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
   theme_minimal() +
- # ylim(0,14) +
-  scale_colour_manual(values=c("#aa3951", "#2f3941")) +
-  scale_fill_manual(values=c("#aa3951", "#2f3941")) +
-  theme(text = element_text(face = "bold"),
+  scale_fill_manual(values = c("#aa3951", "#2f3941")) +
+    scale_colour_manual(values = c("#aa3951", "#2f3941")) +
+  theme(
+    text = element_text(face = "bold"),
     axis.text = element_text(size = 10),
     axis.title = element_text(size = 10),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    legend.position = "top") +
-  labs(title = "ECMP-based Hypodopaminergic [5-item] Delta",
-       x = "\n Number of Months From Baseline",
-       y = "Hypodopaminergic Delta \n",
-       fill = "Treatment") 
-
+    legend.position = "top"
+  ) +
+  labs(
+    title = "ECMP-based Hypodopaminergic [5-item] Delta",
+    x = "\n Number of Months From Baseline",
+    y = "Mean Change in Hypodopaminergic Score ± SEM\n",
+    fill = "Treatment", colour = "Treatment"
+  )
 
 plot
 
 ggsave(file = "../out/box_icb_sev.svg", plot = plot, width = 5, height = 5)
-
-
 
 
 
