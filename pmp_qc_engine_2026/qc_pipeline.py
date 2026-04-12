@@ -126,3 +126,39 @@ def run_qc(df, rules, id_col="Study.Subject.ID"):
                     "status": "FAIL"
                 })
     return pd.DataFrame(summary_rows), pd.DataFrame(audit_rows)
+
+# CLI main entry
+def main(data_path, lookup_path, out_prefix):
+    print("Loading dataset...")
+    loader = DatasetLoader(data_path)
+    data, metadata = loader.load()
+    print(f"Rows: {len(data)} | Columns: {len(data.columns)}")
+    print("Loading lookup...")
+    lookup = pd.read_csv(lookup_path)
+    print("Building rules...")
+    rules = build_rules(lookup)
+    print(f"Rules loaded: {len(rules)}")
+    print("Running QC...")
+    qc_summary, qc_audit = run_qc(data, rules)
+    print("Saving outputs...")
+
+    qc_summary.to_csv(f"{out_prefix}_qc_summary.csv", index=False)
+    qc_audit.to_csv(f"{out_prefix}_qc_audit.csv", index=False)
+
+    with open(f"{out_prefix}_metadata.txt", "w", encoding="utf-8") as f:
+        f.writelines(metadata)
+
+    print("DONE")
+    print(f"→ {out_prefix}_qc_summary.csv")
+    print(f"→ {out_prefix}_qc_audit.csv")
+    print(f"→ {out_prefix}_metadata.txt")
+
+
+# CLI Exec
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Regulatory-grade QC engine")
+    parser.add_argument("--data", required=True, help="Path to TSV dataset")
+    parser.add_argument("--lookup", required=True, help="Path to lookup CSV")
+    parser.add_argument("--out", default="qc_output", help="Output prefix")
+    args = parser.parse_args()
+    main(args.data, args.lookup, args.out)
