@@ -46,3 +46,30 @@ def is_year_var(varname):
 
 def extract_year(x):
     return pd.to_numeric(x.astype(str).str[:4], errors="coerce")
+
+# Lookup rules
+def build_rules(lookup):
+    rules = {}
+    for _, r in lookup.iterrows():
+        var = r["names.data."]
+        type_ = r["type_of"]
+        range_ = r["range_of"]
+        if pd.isna(type_) or pd.isna(range_):
+            continue
+
+        parsed = parse_range(range_)
+        if parsed is None:
+            continue
+        if "continuous" in str(type_):
+            rules[var] = {
+                "type": "continuous",
+                "min": min(parsed),
+                "max": max(parsed)
+            }
+        elif "discrete" in str(type_):
+            rules[var] = {
+                "type": "discrete",
+                "values": parsed
+            }
+    return rules
+
