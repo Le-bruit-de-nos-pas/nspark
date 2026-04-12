@@ -40,3 +40,9 @@ def parse_range(x):
         return [float(v) for v in vals]
     except:
         return vals
+
+def is_year_var(varname):
+    return ("YEAR" in varname) or ("DATE" in varname) or ("DOB" in varname)
+
+def extract_year(x):
+    return pd.to_numeric(x.astype(str).str[:4], errors="coerce")
