@@ -22,3 +22,10 @@ class DatasetLoader:
         # Column names, remove white spaces
         df.columns = [c.strip().replace(" ", ".") for c in df.columns]
         return df, metadata
+
+
+# Helper functions
+def is_missing(x):
+    if x.dtype == "O":
+        return x.isna() | (x.astype(str).str.strip() == "")
+    return x.isna()
