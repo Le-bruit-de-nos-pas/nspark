@@ -29,3 +29,14 @@ def is_missing(x):
     if x.dtype == "O":
         return x.isna() | (x.astype(str).str.strip() == "")
     return x.isna()
+
+def parse_range(x):
+    if pd.isna(x):
+        return None
+    x = str(x)
+    x = re.sub(r"c\(|\)", "", x)
+    vals = [v.strip() for v in x.split(",") if v.strip() != ""]
+    try:
+        return [float(v) for v in vals]
+    except:
+        return vals
