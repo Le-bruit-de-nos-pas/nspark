@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>QC Report Generator</title>
+
+    <!-- Highlight.js -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        background: #161b22;
+        padding: 18px 25px;
+        border-bottom: 1px solid #30363d;
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+      }
+
+      .sidebar {
+        width: 260px;
+        background: #161b22;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #30363d;
+        height: fit-content;
+      }
+
+      .sidebar h3 {
+        margin-top: 0;
+        color: #58a6ff;
+      }
+
+      .sidebar a {
+        display: block;
+        color: #c9d1d9;
+        text-decoration: none;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+
+      .sidebar a:hover {
+        color: #58a6ff;
+      }
+
+      .content {
+        flex: 1;
+      }
+
+      .card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+
+      .card-header {
+        padding: 12px 15px;
+        background: #0d1117;
+        border-bottom: 1px solid #30363d;
+        font-weight: bold;
+        color: #58a6ff;
+      }
+
+      .card-body {
+        padding: 15px;
+        font-size: 14px;
+        color: #8b949e;
+      }
+
+      pre {
+        margin: 0;
+        padding: 15px;
+        overflow-x: auto;
+      }
+
+      code {
+        font-size: 13px;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      QC Report Generator • April 2026 • CHU Toulouse • Paulo BASTOS
+    </header>
+
+    <div class="container">
+      <div class="sidebar">
+        <h3>Sections</h3>
+        <a href="#overview">Overview</a>
+        <a href="#metrics">Metrics</a>
+        <a href="#status">PASS/FAIL Logic</a>
+        <a href="#styling">Row Styling</a>
+        <a href="#html">HTML Generation</a>
+        <a href="#cli">CLI Interface</a>
+      </div>
+
+      <div class="content">
+        <!-- Overview -->
+        <div class="card" id="overview">
+          <div class="card-header">Overview</div>
+          <div class="card-body">
+            Engine to generate HTML QC reports from two inputs:
+            <ul>
+              <li><b>QC Summary</b> (Cohort/variable-level metrics)</li>
+              <li><b>QC Audit</b> (Patient-level issues)</li>
+            </ul>
+            It transforms raw .csv from qc_pipeline.py into visually structured
+            reports.
+          </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="card" id="metrics">
+          <div class="card-header">Cohort-level Summary Metrics</div>
+          <pre><code class="language-python">
+total_vars = len(summary)
+total_issues = len(audit)
+
+missing_vars = (summary["missing_pct"] > 0).sum()
+out_range_vars = (summary["out_of_range_pct"] > 0).sum()
+          </code></pre>
+          <div class="card-body">
+            High-level overview of dataset quality:
+            <ul>
+              <li>Total variables checked</li>
+              <li>Total issues detected</li>
+              <li>Variables with missing values</li>
+              <li>Variables with out-of-range values</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="card" id="status">
+          <div class="card-header">PASS / FAIL Classification</div>
+          <pre><code class="language-python">
+summary["status"] = summary.apply(
+    lambda r: "FAIL" if (r["missing_pct"] > 0 or r["out_of_range_pct"] > 0) else "PASS",
+    axis=1
+)
+          </code></pre>
+          <div class="card-body">
+            Each variable is classified:
+            <ul>
+              <li><b>PASS</b> → no missing or out-of-range values</li>
+              <li><b>FAIL</b> → at least one issue detected</li>
+            </ul>
+            Any deviation triggers a failure flag.
+          </div>
+        </div>
+
+        <!-- Styling -->
+        <div class="card" id="styling">
+          <div class="card-header">Row Highlighting</div>
+          <pre><code class="language-python">
+def highlight_summary(row):
+    if row["status"] == "FAIL":
+        return ['background-color: #2d1111'] * len(row)
+    return [''] * len(row)
+          </code></pre>
+          <div class="card-body">
+            Any row with issues is visually flagged (conservative).
+          </div>
+        </div>
+
+        <!-- HTML -->
+        <div class="card" id="html">
+          <div class="card-header">HTML Report</div>
+          <pre><code class="language-python">
+html = f"""
+<html>
+  ...
+  {summary_html}
+  ...
+  {audit_html}
+</html>
+"""
+          </code></pre>
+          <div class="card-body">
+            This combines:
+            <ul>
+              <li>Summary metrics overview header (cohort-level)</li>
+              <li>Variable QC summary table</li>
+              <li>Patient-level audit trail</li>
+            </ul>
+            Output as a standalone HTML file for review.
+          </div>
+        </div>
+
+        <!-- CLI -->
+        <div class="card" id="cli">
+          <div class="card-header">CLI Interface</div>
+          <pre><code class="language-python">
+python qc_report.py \
+  --summary today_qc_summary.csv \
+  --audit today_qc_audit.csv \
+  --out report.html
+          </code></pre>
+          <div class="card-body">How to run qc_report.py from the CLI.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Clinical data validation • Paulo BASTOS April 2026</div>
+
+    <script>
+      hljs.highlightAll();
+    </script>
+  </body>
+</html>

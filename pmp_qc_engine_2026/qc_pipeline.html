@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>QC Engine</title>
+
+    <!-- Highlight.js (syntax coloring) -->
+    <link
+      <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0b0f17;
+        color: #e6edf3;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        background: #111827;
+        padding: 18px 25px;
+        border-bottom: 1px solid #1f2937;
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+      }
+
+      .container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+      }
+
+      .sidebar {
+        width: 260px;
+        background: #111827;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #1f2937;
+        height: fit-content;
+      }
+
+      .sidebar h3 {
+        margin-top: 0;
+        color: #60a5fa;
+      }
+
+      .sidebar a {
+        display: block;
+        color: #cbd5e1;
+        text-decoration: none;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+
+      .sidebar a:hover {
+        color: #60a5fa;
+      }
+
+      .content {
+        flex: 1;
+      }
+
+      .card {
+        background: #0f172a;
+        border: 1px solid #1f2937;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+
+      .card-header {
+        padding: 12px 15px;
+        background: #111827;
+        border-bottom: 1px solid #1f2937;
+        font-weight: bold;
+        color: #93c5fd;
+      }
+
+      pre {
+        margin: 0;
+        padding: 15px;
+        overflow-x: auto;
+      }
+
+      code {
+        font-size: 13px;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>QC Engine • Clinical Data Validation Framework • April 2026 • CHU Toulouse • Paulo BASTOS</header>
+
+    <div class="container">
+      <div class="sidebar">
+        <h3>Modules</h3>
+        <a href="#loader">Dataset Loader</a>
+        <a href="#helpers">Helper Functions</a>
+        <a href="#rules">Rule Builder</a>
+        <a href="#qc">QC Engine</a>
+        <a href="#cli">CLI Interface</a>
+      </div>
+
+      <div class="content">
+        <!-- Dataset Loader -->
+        <div class="card" id="loader">
+          <div class="card-header">Dataset Loader</div>
+          <pre><code class="language-python">
+import pandas as pd
+import numpy as np
+import io
+import re
+import argparse
+
+class DatasetLoader:
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def load(self):
+        with open(self.file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        start = next(
+            i for i, l in enumerate(lines)
+            if l.strip().startswith("Study Subject ID")
+        )
+
+        metadata = lines[:start]
+        data_text = "".join(lines[start:])
+
+        df = pd.read_csv(io.StringIO(data_text),
+                         sep="\t",
+                         dtype=str,
+                         engine="python")
+
+        df.columns = [c.strip().replace(" ", ".") for c in df.columns]
+        return df, metadata
+            </code></pre>
+        </div>
+
+        <!-- Helpers -->
+        <div class="card" id="helpers">
+          <div class="card-header">Helper Functions</div>
+          <pre><code class="language-python">
+def is_missing(x):
+    if x.dtype == "O":
+        return x.isna() | (x.astype(str).str.strip() == "")
+    return x.isna()
+
+def parse_range(x):
+    if pd.isna(x):
+        return None
+    x = str(x)
+    x = re.sub(r"c\(|\)", "", x)
+    vals = [v.strip() for v in x.split(",") if v.strip()]
+    try:
+        return [float(v) for v in vals]
+    except:
+        return vals
+
+def is_year_var(varname):
+    return ("YEAR" in varname) or ("DATE" in varname) or ("DOB" in varname)
+
+def extract_year(x):
+    return pd.to_numeric(x.astype(str).str[:4], errors="coerce")
+            </code></pre>
+        </div>
+
+        <!-- Rules -->
+        <div class="card" id="rules">
+          <div class="card-header">Lookup Rule Builder</div>
+          <pre><code class="language-python">
+def build_rules(lookup):
+    rules = {}
+
+    for _, r in lookup.iterrows():
+        var = r["names.data."]
+        type_ = r["type_of"]
+        range_ = r["range_of"]
+
+        if pd.isna(type_) or pd.isna(range_):
+            continue
+
+        parsed = parse_range(range_)
+        if parsed is None:
+            continue
+
+        if "continuous" in str(type_):
+            rules[var] = {
+                "type": "continuous",
+                "min": min(parsed),
+                "max": max(parsed)
+            }
+
+        elif "discrete" in str(type_):
+            rules[var] = {
+                "type": "discrete",
+                "values": parsed
+            }
+
+    return rules
+            </code></pre>
+        </div>
+
+        <!-- QC -->
+        <div class="card" id="qc">
+          <div class="card-header">QC Engine</div>
+          <pre><code class="language-python">
+def run_qc(df, rules, id_col="Study.Subject.ID"):
+    summary_rows = []
+    audit_rows = []
+
+    ids = df[id_col]
+
+    for var, rule in rules.items():
+
+        if var not in df.columns:
+            continue
+
+        x = df[var]
+        miss = is_missing(x)
+
+        x_num = pd.to_numeric(x, errors="coerce")
+        if is_year_var(var):
+            x_num = extract_year(x)
+
+        valid = np.zeros(len(df), dtype=bool)
+
+        if rule["type"] == "continuous":
+            valid = (~x_num.isna()) & (x_num >= rule["min"]) & (x_num <= rule["max"])
+
+        elif rule["type"] == "discrete":
+            valid = (~x_num.isna()) & x_num.isin(rule["values"])
+
+        summary_rows.append({
+            "variable": var,
+            "missing_pct": miss.mean() * 100,
+            "in_range_pct": valid.mean() * 100,
+            "out_of_range_pct": ((~valid) & (~miss)).mean() * 100
+        })
+
+        for i in range(len(df)):
+            if miss.iloc[i]:
+                audit_rows.append({
+                    "subject_id": ids.iloc[i],
+                    "variable": var,
+                    "issue_type": "MISSING"
+                })
+            elif not valid[i]:
+                audit_rows.append({
+                    "subject_id": ids.iloc[i],
+                    "variable": var,
+                    "issue_type": "OUT_OF_RANGE"
+                })
+
+    return pd.DataFrame(summary_rows), pd.DataFrame(audit_rows)
+            </code></pre>
+        </div>
+
+        <!-- CLI -->
+        <div class="card" id="cli">
+          <div class="card-header">CLI Interface</div>
+          <pre><code class="language-python">
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Regulatory QC Engine")
+    parser.add_argument("--data", required=True)
+    parser.add_argument("--lookup", required=True)
+    parser.add_argument("--out", default="qc_output")
+
+    args = parser.parse_args()
+
+    loader = DatasetLoader(args.data)
+    df, metadata = loader.load()
+
+    lookup = pd.read_csv(args.lookup)
+    rules = build_rules(lookup)
+
+    qc_summary, qc_audit = run_qc(df, rules)
+
+    qc_summary.to_csv(f"{args.out}_summary.csv", index=False)
+    qc_audit.to_csv(f"{args.out}_audit.csv", index=False)
+            </code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Clinical data validation • Paulo BASTOS April 2026</div>
+
+    <script>
+      hljs.highlightAll();
+    </script>
+  </body>
+</html>
