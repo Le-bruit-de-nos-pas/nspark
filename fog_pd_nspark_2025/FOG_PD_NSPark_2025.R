@@ -605,6 +605,8 @@ df_complet <- fread( "df_complet.txt")
 
 df_complet <- df_complet %>% select(-c(anonyme_id...1, act_datedeb...5))
 
+length(unique(df_complet$anonyme_id...25))
+
 
 Echellesmdsupdrs_20250106 <- read_excel(path = "Echellesmdsupdrs_20250106.xlsx")
 
@@ -627,6 +629,10 @@ test <- df_complet %>% select( `anonyme_id...25`, B, freezing, disease_duration,
 test <- test %>% mutate(disease_duration=disease_duration/5)
 test <- test %>% mutate(mds3_tot_on=mds3_tot_on/10)
 
+
+unique(test$freezing)
+
+test <- test %>% mutate(freezing=ifelse(freezing>=2,2,freezing) )
 
 library(ordinal)
 
@@ -680,7 +686,7 @@ summary(model)
 # 2|3  22.0585     1.3691   16.11
 # 3|4  26.4314     1.6486   16.03
 
-test$freezing_factor <- factor(test$freezing, levels = 0:4)
+test$freezing_factor <- factor(test$freezing, levels = 0:2)
 
 library(ordinal)
 
@@ -729,15 +735,15 @@ library(ggplot2)
 library(dplyr)
 
 # Fixed effects
-coef <- c(B = 0.6120,
-          disease_duration = 1.4701,
-          hoehn_yahr_on = 1.9148,
-          mds3_tot_on = 0.6174)
+coef <- c(B = 0.5502     ,
+          disease_duration = 1.6431     ,
+          hoehn_yahr_on = 2.0322     ,
+          mds3_tot_on = 0.6419     )
 
-se <- c(B = 0.3421,
-        disease_duration = 0.1884,
-        hoehn_yahr_on = 0.3347,
-        mds3_tot_on = 0.1510)
+se <- c(B = 0.3669   ,
+        disease_duration = 0.2091   ,
+        hoehn_yahr_on = 0.3749   ,
+        mds3_tot_on = 0.1635   )
 
 # Compute OR and 95% CI
 OR <- exp(coef)
@@ -796,6 +802,7 @@ plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
     legend.text = element_text(size = 12)
   )
 
+plot
 ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
 
 
@@ -840,15 +847,19 @@ test <- test %>% left_join(LEDD, by=c("anonyme_id...25"="anonyme_id", "act_dated
 
 test$ttt_ledd_totale <- as.numeric(test$ttt_ledd_totale)
 
+range(test$ttt_ledd_totale)
+
+
+test <- test %>% filter(ttt_ledd_totale<=25000 & ttt_ledd_totale>0)
+
 
 test$ttt_ledd_totale <- test$ttt_ledd_totale / 250
+
 
 library(ordinal)
 
 model <- clmm(
-  as.factor(freezing) ~ ttt_ledd_totale + disease_duration + 
-    hoehn_yahr_on + mds3_tot_on +
-    (1 | `anonyme_id...25`),
+  as.factor(freezing) ~ ttt_ledd_totale  +  (1 | `anonyme_id...25`),
   data = test,
   link = "logit"
 )
@@ -856,16 +867,15 @@ model <- clmm(
 summary(model)
 
 
-# Fixed effects
-coef <- c(B = 0.013883   ,
-          disease_duration = 1.475911   ,
-          hoehn_yahr_on = 2.263538   ,
-          mds3_tot_on = 0.769536   )
 
-se <- c(B = 0.005811   ,
-        disease_duration = 0.228893   ,
-        hoehn_yahr_on = 0.430872   ,
-        mds3_tot_on = 0.184885   )
+
+
+
+
+# Fixed effects
+coef <- c(B = 0.13954           )
+
+se <- c(B = 0.06828            )
 
 # Compute OR and 95% CI
 OR <- exp(coef)
@@ -874,7 +884,7 @@ upper <- exp(coef + 1.96*se)
 pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
 
 forest_df <- data.frame(
-  Predictor = c("Total LEDD", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  Predictor = c("Total Levodopa LEDD (+250 mg)"),
   OR = OR,
   lower = lower,
   upper = upper,
@@ -911,6 +921,7 @@ plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
              label.size = 0.5) + 
   geom_vline(xintercept = 1, linetype = "dashed") +
   scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+    xlim(-2,20)+
   labs(
     x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
     y = ""
@@ -926,6 +937,97 @@ plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
 
 
 plot
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 2.5)
+
+
+
+
+
+library(ordinal)
+
+model <- clmm(
+  as.factor(freezing) ~ ttt_ledd_totale + disease_duration + 
+    hoehn_yahr_on + mds3_tot_on +
+    (1 | `anonyme_id...25`),
+  data = test,
+  link = "logit"
+)
+
+summary(model)
+
+
+# Fixed effects
+coef <- c(B = 0.08820       ,
+          disease_duration = 1.46239       ,
+          hoehn_yahr_on = 2.01728       ,
+          mds3_tot_on = 0.72813       )
+
+se <- c(B = 0.05863      ,
+        disease_duration = 0.24953      ,
+        hoehn_yahr_on = 0.43973      ,
+        mds3_tot_on = 0.18877      )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Total Levodopa LEDD (+250 mg)", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  xlim(-2,20)+
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+
+plot
+
 ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
 
 
@@ -6065,7 +6167,91 @@ df_complet <- df_complet %>% filter(!is.na(hoehn_yahr_on))
 df_complet$gap2 <- df_complet$gap2 / 365.25
 df_complet$disease_duration <- df_complet$disease_duration / 1
 
+
+
+
 library(ordinal)
+
+
+model <- clmm(
+  freezing ~ gap2   +  (1 | `anonyme_id...1`),
+  data = df_complet,
+  link = "logit"
+)
+
+summary(model)
+
+# Fixed effects
+coef <- c(B = 0.53611)
+
+se <- c(B = 0.02862  )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Cumulative # Years ON Levodopa"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  xlim(0,7) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 2.5)
+
+
+
+
+library(ordinal)
+
 
 model <- clmm(
   freezing ~ gap2  + disease_duration  +  hoehn_yahr_on   +
@@ -6145,6 +6331,12 @@ plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
 plot
 
 ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+
+
+
+
+
 
 
 
