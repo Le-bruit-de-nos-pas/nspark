@@ -1,7 +1,7 @@
 library(data.table)
 library(tidyverse)
 library(readxl)
-library(lubridate)
+library(lubridate) 
 
 # overall data ---------------------------------------------------
 
@@ -7952,6 +7952,96 @@ PPMI_Curated_Data_Cut_Public_20241211$gap2 <- PPMI_Curated_Data_Cut_Public_20241
 
 library(ordinal)
 
+
+
+model <- clmm(
+  FRZGT1W  ~ gap2    +
+    (1 | PATNO),
+  data = PPMI_Curated_Data_Cut_Public_20241211,
+  link = "logit"
+)
+
+summary(model)
+
+
+
+
+
+# Fixed effects
+coef <- c(B = 1.5257             )
+
+se <- c(B = 0.5822        )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Cumulative # Years ON Levodopa"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+ xlim(-2,15) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot_2.svg", plot = plot, width = 10, height = 2.5)
+
+
+
+
+
+
+
+
+
+
 model <- clmm(
   FRZGT1W  ~ gap2  + disease_duration  +  hy_on    + updrs3_score_on  +
     (1 | PATNO),
@@ -9155,3 +9245,297 @@ ggsave(filename = "example-plot.svg", plot = plot, width = 8, height = 4)
 
 
 # ---------------
+
+# Total LEDD Mixed Models ---------------
+
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- read_excel(path = "ppmi_docs_zips/PPMI_Curated_Data_Cut_Public_20241211.xlsx")
+PPMI_Curated_Data_Cut_Public_20241211$PATNO <- as.numeric(PPMI_Curated_Data_Cut_Public_20241211$PATNO)
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% filter(COHORT==1) 
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  select(PATNO, visit_date, YEAR, duration_yrs, updrs3_score_on, hy_on, EVENT_ID )
+
+
+
+
+
+# Freezing
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- fread("Medical/Determination_of_Freezing_and_Falls_12Feb2025.csv")
+
+Determination_of_Freezing_and_Falls_12Feb2025 <- Determination_of_Freezing_and_Falls_12Feb2025 %>% 
+  select(PATNO, PATNO, EVENT_ID,  INFODT , FRZGT12M , FRZGT1W)
+
+Determination_of_Freezing_and_Falls_12Feb2025$PATNO <- as.numeric(Determination_of_Freezing_and_Falls_12Feb2025$PATNO)
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  left_join(Determination_of_Freezing_and_Falls_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="INFODT", "EVENT_ID"="EVENT_ID"))
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+  mutate(disease_duration=duration_yrs+YEAR) %>% select(-c( FRZGT12M)) 
+
+# 
+# PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>% 
+#   left_join(LEDD_Concomitant_Medication_Log_12Feb2025, by=c("PATNO"="PATNO", "visit_date"="STARTDT")) 
+
+
+PPMI_Curated_Data_Cut_Public_20241211 <- PPMI_Curated_Data_Cut_Public_20241211 %>%
+  mutate(visit_date=as.Date(paste("01/", as.character(visit_date)), "%d/%m/%Y")) 
+
+
+test <- PPMI_Curated_Data_Cut_Public_20241211 %>% select(PATNO, visit_date, FRZGT1W, hy_on, disease_duration, updrs3_score_on ) %>% 
+  mutate(FRZGT1W=as.numeric(FRZGT1W)) %>%
+    mutate(hy_on=as.numeric(hy_on)) %>% drop_na()
+
+
+test <- test %>% mutate(disease_duration=disease_duration/5, updrs3_score_on=updrs3_score_on/10)
+
+test<- test %>% mutate(FRZGT1W=ifelse(FRZGT1W>=2,2,FRZGT1W))
+
+test$FRZGT1W <- as.factor(test$FRZGT1W)
+
+
+
+# Levodopa status
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- fread("Medical/LEDD_Concomitant_Medication_Log_12Feb2025.csv")
+
+Levodopa_lookups_complete <- fread("Other/Levodopa_lookups_complete.csv")
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>% select(PATNO, LEDD, LEDTRT, STARTDT, STOPDT) %>%
+  left_join(Levodopa_lookups_complete) %>% select(-c(LEDTRT ))
+
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>%
+  mutate(STARTDT=as.Date(paste("01/", as.character(STARTDT)), "%d/%m/%Y")) 
+
+LEDD_Concomitant_Medication_Log_12Feb2025 <- LEDD_Concomitant_Medication_Log_12Feb2025 %>%
+  mutate(STOPDT =as.Date(paste("01/", as.character(STOPDT )), "%d/%m/%Y")) 
+
+
+
+# Your original table
+test <- test %>%
+  mutate(visit_date = as.Date(visit_date))
+
+# Medication log
+med <- LEDD_Concomitant_Medication_Log_12Feb2025 %>%
+  mutate(
+    STARTDT = as.Date(STARTDT),
+    STOPDT = as.Date(STOPDT)
+  )
+
+
+
+# Step 1: For each PATNO and visit_date, sum LEDD where visit_date is in medication period
+ledd_per_visit <- test %>%
+  left_join(med %>% filter(Contains_Levodopa==1), by = "PATNO") %>%
+  filter(
+    visit_date >= STARTDT,
+    is.na(STOPDT) | visit_date <= STOPDT
+  ) %>%
+  group_by(PATNO, visit_date) %>%
+  summarise(total_LEDD = sum(as.numeric(LEDD), na.rm = TRUE), .groups = "drop")
+
+# Step 2: Join back to original table
+test_with_LEDD <- test %>%
+  left_join(ledd_per_visit, by = c("PATNO", "visit_date"))
+
+# View result
+head(test_with_LEDD)
+
+
+# test_with_LEDD <- test_with_LEDD %>% mutate(total_LEDD=ifelse(is.na(total_LEDD),0,total_LEDD))
+
+test_with_LEDD <- test_with_LEDD %>% filter(total_LEDD<=10000)
+
+test_with_LEDD$total_LEDD <- test_with_LEDD$total_LEDD/250
+
+
+
+library(ordinal)
+
+
+model <- clmm(
+  FRZGT1W ~ total_LEDD  +
+    (1 | PATNO),
+  data = test_with_LEDD,
+  link = "logit"
+)
+
+summary(model)
+
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Fixed effects
+coef <- c(B = 0.29177     )
+
+se <- c(B = 0.05997      )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Total Levodopa LEDD mg (+250 mg)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  xlim(-2,7) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 2.5)
+
+
+
+
+
+
+
+
+
+library(ordinal)
+
+model <- clmm(
+  FRZGT1W ~ total_LEDD  + disease_duration + 
+    hy_on  + updrs3_score_on +
+    (1 | PATNO),
+  data = test_with_LEDD,
+  link = "logit"
+)
+
+summary(model)
+
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Fixed effects
+coef <- c(B = 0.15531    ,
+          disease_duration = 1.47854           ,
+          hoehn_yahr_on = 0.41037    ,
+          mds3_tot_on = 0.69561    )
+
+se <- c(B = 0.05932,
+        disease_duration = 0.18681     ,
+        hoehn_yahr_on = 0.22199   ,
+        mds3_tot_on = 0.09836   )
+
+# Compute OR and 95% CI
+OR <- exp(coef)
+lower <- exp(coef - 1.96*se)
+upper <- exp(coef + 1.96*se)
+pval <- 2 * pnorm(-abs(coef / se))  # approximate p-value from z
+
+forest_df <- data.frame(
+  Predictor = c("Total Levodopa LEDD mg (+250 mg)", "Disease duration (x5 years)", "Hoehn & Yahr ON", "MDS-UPDRS III ON (+10 points)"),
+  OR = OR,
+  lower = lower,
+  upper = upper,
+  p.value = pval
+)
+
+# Add formatted labels
+forest_df <- forest_df %>%
+  mutate(
+    label = paste0(
+      "OR ", round(OR, 2),
+      " (", round(lower, 2), "–", round(upper, 2), ")",
+      "\np = ", signif(p.value, 2)
+    )
+  )
+
+# Plot
+plot <- ggplot(forest_df, aes(x = OR, y = reorder(Predictor, OR))) +
+  geom_segment(aes(x = lower,
+                   xend = upper,
+                   yend = reorder(Predictor, OR)),
+               size = 4,
+               lineend = "round",
+               color = "#8499b1") +
+  geom_point(aes(x = OR),
+             size = 4,
+             shape = 21,
+             fill = "firebrick", colour="white",
+             stroke = 2) +
+  geom_label(aes(x = OR, label = label),
+             vjust = -0.5,
+             size = 4.5,
+             fontface = "bold",
+             label.size = 0.5) + 
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_continuous(expand = expansion(mult = c(0.1, 0.15))) +
+  xlim(-2,7) +
+  labs(
+    x = "\n Adjusted Odds Ratio (FOG severity ~ predictors)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+ggsave(filename = "example-plot.svg", plot = plot, width = 10, height = 6)
+
+# ---------
